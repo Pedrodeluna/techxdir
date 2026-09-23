@@ -8,7 +8,27 @@ import './auth.css'
 /* Vuelta del enlace mágico o de X. Si falta el usuario de X (entrada por email),
    se pide aquí antes de entrar en la acreditación. */
 
-type Step = { kind: 'checking' } | { kind: 'complete'; name: string } | { kind: 'failed' }
+type Step =
+  | { kind: 'checking' }
+  | { kind: 'complete'; name: string }
+  | { kind: 'failed'; title: string; message: string }
+
+function callbackFailure(): Extract<Step, { kind: 'failed' }> {
+  const query = new URLSearchParams(location.search)
+  const fragment = new URLSearchParams(location.hash.slice(1))
+  if (query.has('error') || fragment.has('error')) {
+    return {
+      kind: 'failed',
+      title: 'No hemos podido entrar',
+      message: 'El proveedor de acceso ha rechazado la autenticación. Vuelve a intentarlo.',
+    }
+  }
+  return {
+    kind: 'failed',
+    title: 'No hemos podido entrar',
+    message: 'El enlace puede haber caducado o haberse usado ya. Pide uno nuevo o vuelve a entrar con X.',
+  }
+}
 
 export function AuthCallback() {
   const { session, loading } = useAuth()
@@ -22,8 +42,7 @@ export function AuthCallback() {
   useEffect(() => {
     if (loading) return
     if (!session) {
-      // sin sesión tras volver: enlace caducado o ya usado
-      const t = setTimeout(() => setStep({ kind: 'failed' }), 0)
+      const t = setTimeout(() => setStep(callbackFailure()), 0)
       return () => clearTimeout(t)
     }
     let alive = true
@@ -36,7 +55,11 @@ export function AuthCallback() {
           setStep({ kind: 'complete', name: p.name })
         }
       })
-      .catch(() => alive && setStep({ kind: 'failed' }))
+      .catch(() => alive && setStep({
+        kind: 'failed',
+        title: 'No hemos podido cargar tu acreditación',
+        message: 'Tu sesión está abierta, pero ha fallado la carga del perfil. Recarga la página para intentarlo otra vez.',
+      }))
     return () => { alive = false }
   }, [session, loading, navigate])
 
@@ -78,8 +101,8 @@ export function AuthCallback() {
 
           {step.kind === 'failed' && (
             <div className="au-body">
-              <h1 id="au-title">El enlace ya no vale</h1>
-              <p className="au-lede">Los enlaces caducan en una hora y solo sirven una vez. Pide uno nuevo.</p>
+              <h1 id="au-title">{step.title}</h1>
+              <p className="au-lede">{step.message}</p>
               <div className="au-foot"><Link to="/entrar" className="primary au-submit">Volver a entrar</Link></div>
             </div>
           )}

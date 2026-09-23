@@ -15,6 +15,7 @@ type Status =
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const redirectTo = () => `${location.origin}/auth/callback`
+const xProvider = import.meta.env.VITE_X_AUTH_PROVIDER === 'x' ? 'x' : 'twitter'
 
 export function Auth() {
   const { session } = useAuth()
@@ -33,7 +34,7 @@ export function Auth() {
   async function withX() {
     if (!supabase) return
     setStatus({ kind: 'sending', via: 'x' })
-    const { error } = await supabase.auth.signInWithOAuth({ provider: 'x', options: { redirectTo: redirectTo() } })
+    const { error } = await supabase.auth.signInWithOAuth({ provider: xProvider, options: { redirectTo: redirectTo() } })
     // si va bien, el navegador sale hacia X y no volvemos aquí
     if (error) setStatus({ kind: 'error', message: 'No hemos podido abrir X. Prueba de nuevo o entra con tu email.' })
   }

@@ -37,7 +37,7 @@ You can also share the badge as a 1080×1350 image on X, LinkedIn or WhatsApp.
 | Layer | Technology |
 |---|---|
 | Frontend | React 19, TypeScript (strict), Vite, React Router |
-| Auth | Supabase Auth: X (Twitter) OAuth 2.0 and email magic link. No passwords. |
+| Auth | Supabase Auth: X (Twitter) OAuth 1.0a and email magic link. No passwords. |
 | Database | Supabase Postgres with row level security |
 | Backend logic | Supabase Edge Functions (Deno) |
 | Tooling | npm workspaces, oxlint, Deno test |
@@ -90,7 +90,7 @@ Demo mode needs no backend. The app uses the sample data and saves your changes 
    ```sh
    npm run dev
    ```
-3. Open http://localhost:5173.
+3. Open http://127.0.0.1:55330.
 
 Without Supabase variables, `/entrar` shows a demo notice and `/acreditacion` opens the sample badge.
 
@@ -110,16 +110,19 @@ Without Supabase variables, `/entrar` shows a demo notice and `/acreditacion` op
    ```sh
    npm run dev
    ```
-4. Sign in at http://localhost:5173/entrar with any email. Open the magic link from the local mail inbox at http://127.0.0.1:55324.
+4. Sign in at http://127.0.0.1:55330/entrar with any email. Open the magic link from the local mail inbox at http://127.0.0.1:55324.
 
-This project uses the ports **55320–55329** so that it can run next to another local Supabase project on the default 543xx ports.
+This project uses port **55330** for Vite and **55320–55329** for local Supabase so that it can run next to other local projects. Vite fails if port 55330 is occupied instead of silently serving this app on a different port.
 
 ### X (Twitter) sign-in
 
-1. Create an app in the [X developer portal](https://developer.x.com) with OAuth 2.0 enabled.
-2. Set the callback URL to `http://127.0.0.1:55321/auth/v1/callback` (local) or `https://<project-ref>.supabase.co/auth/v1/callback` (hosted).
-3. Copy `supabase/.env.example` to `supabase/.env` and fill in the client ID and secret.
-4. Restart the stack: `supabase stop && supabase start`.
+The active login uses X OAuth 1.0a: the frontend calls `provider: 'twitter'`, and Supabase uses **Twitter (Deprecated)**. This is the flow tested against the hosted `techxdir` project. **X / Twitter (OAuth 2.0)** (`provider: 'x'`) is not configured there. OAuth 1.0a uses the X app's API Key and API Secret Key; its Bearer Token and OAuth 2.0 Client ID/Secret are not used. Supabase recommends OAuth 2.0 for new integrations and plans to deprecate this legacy provider. Do not assume OAuth 1.0a is free; check the applicable X Developer charges.
+
+In the hosted Supabase Dashboard, open **Authentication → Sign In / Providers → Twitter (Deprecated)** and enable it. Enter the X app's **API Key** as the provider key/client ID and its **API Secret Key** as the provider secret. Turn on **Allow users without an email**: X may not return one, and without this setting sign-in fails. Copy the Supabase callback URL shown there into the X app's callback settings (`https://<project-ref>.supabase.co/auth/v1/callback`), and enable **Sign in with X** in the X app. Add the frontend's `/auth/callback` URL to Supabase Authentication → URL Configuration → Redirect URLs.
+
+To test the web app locally against the hosted Supabase project, use `http://127.0.0.1:55330` as the X app's **Website URL** if X rejects `localhost` in that field (Supabase documents `127.0.0.1` as a development option). Keep `https://<project-ref>.supabase.co/auth/v1/callback` as the X **Callback URL**. Add `http://127.0.0.1:55330/auth/callback` to the hosted project's Authentication → URL Configuration → Redirect URLs. In `web/.env.local`, set `VITE_SUPABASE_URL=https://<project-ref>.supabase.co`, `VITE_SUPABASE_ANON_KEY` to that project's publishable/anon key, and `VITE_X_AUTH_PROVIDER=twitter`. Run `npm run dev` and open `http://127.0.0.1:55330/entrar` (use this exact host so it matches the redirect URL). X returns to hosted Supabase, which then returns to the local web app. This route does not require local Supabase or a second X callback; test sign-ins and profile changes use the hosted project's real data.
+
+To run Supabase Auth itself locally instead of using the hosted project, put the same API Key and API Secret Key in `SUPABASE_AUTH_EXTERNAL_TWITTER_CLIENT_ID` and `SUPABASE_AUTH_EXTERNAL_TWITTER_SECRET` in `supabase/.env`, register `http://127.0.0.1:55321/auth/v1/callback` in the X app, and restart Supabase and Vite. This is a separate OAuth callback from the hosted project. Do not switch existing users between `twitter` and `x` without checking account identity linking; the provider identifier changes.
 
 ## Environment variables
 
@@ -127,8 +130,11 @@ This project uses the ports **55320–55329** so that it can run next to another
 |---|---|---|
 | `web/.env.local` | `VITE_SUPABASE_URL` | Supabase API URL. Local: `http://127.0.0.1:55321`. |
 | `web/.env.local` | `VITE_SUPABASE_ANON_KEY` | Public anon key. If this or the URL is missing, the app runs in demo mode. |
-| `supabase/.env` | `SUPABASE_AUTH_EXTERNAL_X_CLIENT_ID` | X OAuth 2.0 client ID. |
-| `supabase/.env` | `SUPABASE_AUTH_EXTERNAL_X_SECRET` | X OAuth 2.0 client secret. |
+| `web/.env.local` | `VITE_X_AUTH_PROVIDER` | `twitter` (default, OAuth 1.0a). `x` requires separately configuring the OAuth 2.0 provider in Supabase and X. |
+| `supabase/.env` | `SUPABASE_AUTH_EXTERNAL_TWITTER_CLIENT_ID` | X OAuth 1.0a API Key; only for the legacy provider. |
+| `supabase/.env` | `SUPABASE_AUTH_EXTERNAL_TWITTER_SECRET` | X OAuth 1.0a API Secret Key; only for the legacy provider. |
+| `supabase/.env` | `SUPABASE_AUTH_EXTERNAL_X_CLIENT_ID` | X OAuth 2.0 Client ID; unused by the active setup. |
+| `supabase/.env` | `SUPABASE_AUTH_EXTERNAL_X_SECRET` | X OAuth 2.0 Client Secret; unused by the active setup. |
 
 Never commit `.env` or `.env.local` files. The root `.gitignore` excludes them.
 
@@ -138,7 +144,7 @@ Run these from the repository root.
 
 | Command | What it does |
 |---|---|
-| `npm run dev` | Start the Vite dev server on port 5173. |
+| `npm run dev` | Start the Vite dev server on port 55330. |
 | `npm run build` | Type-check and build the frontend into `web/dist`. |
 | `npm run lint` | Lint the frontend with oxlint. |
 | `npm run preview` | Serve the production build. |
@@ -202,8 +208,10 @@ curl http://127.0.0.1:55321/functions/v1/profile \
    supabase db push
    supabase functions deploy profile
    ```
-3. In the Supabase dashboard, set the site URL and add `https://<your-domain>/auth/callback` to the redirect URLs. Enable the X provider.
+3. In the Supabase dashboard, set the production Site URL and add `https://<your-domain>/auth/callback` to the redirect URLs. Configure **Twitter (Deprecated)** and **Allow users without an email** as above. Do not leave the default `http://localhost:3000` Site URL in a production deployment.
 4. Build the frontend with the hosted `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`, and deploy `web/dist` to any static host. Configure the host to serve `index.html` for all routes (single-page app).
+
+For automatic deployment when a pull request is merged into `main`, connect this repository in Supabase Dashboard → Project Settings → Integrations → GitHub Integration. Set the working directory to `.` and enable **Deploy to production** for `main`. Supabase applies new migrations and deploys Edge Functions declared in `supabase/config.toml`, including `profile`. This does not require a GitHub Actions workflow or repository secrets. **Auth settings in `config.toml` are ignored for production deployments by this integration**; configure the hosted provider, its email option, Site URL, and redirect URLs in the Supabase Dashboard.
 
 ## Design system
 
