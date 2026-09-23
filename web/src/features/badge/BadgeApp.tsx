@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEv
 import type { Me } from '../../data/sample'
 import { BadgeBack, BadgeFront } from './BadgeFront'
 import { focusQuiet, replay } from './dom'
-import { EV, LEAN, MOVE_MS, MOVE_NARROW_MS, SIDE, contacts, peopleOf, myEventsSplit, plural, type Section } from './model'
+import { EV, LEAN, MOVE_MS, SIDE, contacts, peopleOf, myEventsSplit, plural, type Section } from './model'
 import { BioPanel } from './panels/BioPanel'
 import { EventsPanel, type EventsTab } from './panels/EventsPanel'
 import { PeoplePanel, type PeopleTab } from './panels/PeoplePanel'
@@ -15,8 +15,6 @@ import '../../styles/badge.css'
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches
 const CAN_HOVER = matchMedia('(hover: hover)').matches
 const NARROW = matchMedia('(max-width: 899px)') // mismo corte que badge.css
-
-const moveMs = () => (NARROW.matches ? MOVE_NARROW_MS : MOVE_MS)
 
 type Side = 'left' | 'right' | null
 
@@ -66,19 +64,15 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
     if (delta === 0) return
     card.animate(
       [{ transform: `rotateY(${from}deg)` }, { transform: `rotateY(${turn.current}deg)` }],
-      { duration: moveMs(), easing: 'cubic-bezier(.65, 0, .25, 1)' },
+      { duration: MOVE_MS, easing: 'cubic-bezier(.65, 0, .25, 1)' },
     )
   }
 
   // Vuelta completa en el sentido del desplazamiento; null = volver al centro.
-  // En móvil la tarjeta no gira ni se inclina: solo vuelve a quedar plana.
+  // En móvil no se inclina: solo asoma una franja recta junto al borde.
   const goTo = (side: Side) => {
-    if (NARROW.matches) {
-      spin(-lean.current)
-      lean.current = 0
-      return
-    }
-    const target = side === 'left' ? LEAN : side === 'right' ? -LEAN : 0
+    const lift = NARROW.matches ? 0 : LEAN
+    const target = side === 'left' ? lift : side === 'right' ? -lift : 0
     const dir = side === 'left' ? 1 : side === 'right' ? -1 : (lean.current > 0 ? -1 : 1)
     spin(dir * 360 + target - lean.current)
     lean.current = target
@@ -158,7 +152,7 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
     setTimeout(() => {
       busy.current = false
       focusQuiet(frontRef.current?.querySelector(`[data-open="${was}"]`))
-    }, moveMs())
+    }, MOVE_MS)
   }
 
   const open = (section: Section, zone: HTMLElement, ev: MouseEvent) => {
@@ -169,8 +163,7 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
     const side = SIDE[section]
 
     if (current) {
-      // en móvil el panel siempre está abajo: no hay cambio de lado
-      const sameSide = NARROW.matches || SIDE[current] === side
+      const sameSide = SIDE[current] === side
       const switchZone = () => {
         if (current === 'bio') setDraftMe(null) // descarta la vista previa sin guardar
         setCurrent(section)
@@ -194,11 +187,11 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
         setStage(s => ({ ...s, panelLeft: side === 'right', swapping: false }))
       }, 250)
       // la zona activa cambia a mitad del giro, con el anverso de espaldas
-      setTimeout(switchZone, moveMs() / 2)
+      setTimeout(switchZone, MOVE_MS / 2)
       setTimeout(() => {
         busy.current = false
         focusClose()
-      }, moveMs())
+      }, MOVE_MS)
       return
     }
 
@@ -211,7 +204,7 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
     setTimeout(() => {
       busy.current = false
       focusClose()
-    }, moveMs())
+    }, MOVE_MS)
   }
 
   // los manejadores globales leen siempre la última versión de close()
@@ -311,6 +304,9 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
           </PanelContent>
         )}
       </aside>
+
+      {/* móvil: la franja de la acreditación que asoma en el borde vuelve al menú */}
+      <button className="peek" type="button" aria-label="Volver a la acreditación" hidden={!stage.open} onClick={close} />
 
       <ShareMenu open={shareOpen} state={state} anchorRef={shareBtnRef} onClose={closeShare} />
 

@@ -343,6 +343,9 @@
   .stage.open.panel-left .panel { transform: none; }
 }
 
+/* franja para volver: solo en móvil */
+.peek { display: none; }
+
 /* cambio de lado: el panel se oculta mientras la tarjeta cruza */
 .stage.open.swapping .panel { opacity: 0; transition: opacity .2s; }
 
@@ -660,34 +663,41 @@
 @media (max-width: 899px) {
   :root {
     --w: min(400px, calc(100vw - 32px), calc((100dvh - 120px) / 1.5));
-    --s: .32;
   }
 
-  /* en móvil nada gira: la tarjeta sube y el panel entra desde abajo, como una hoja */
-  .mover { transition: transform .35s var(--ease-out); }
-  .stage.open .mover {
-    transform: translateY(calc(16px + var(--h) * var(--s) / 2 - 50dvh)) scale(var(--s));
-    transition-duration: .45s;
-  }
+  /* como en el PC, la tarjeta gira hacia un lado, pero sale casi del todo:
+     solo asoma una franja (la .peek) y el panel queda centrado */
+  .stage { --peek: 28px; }
+  .stage.open .mover { transform: translateX(calc(var(--w) / -2 - 50vw + var(--peek))); }
+  .stage.open.card-right .mover { transform: translateX(calc(var(--w) / 2 + 50vw - var(--peek))); }
 
   .panel {
     position: fixed;
-    inset: calc(32px + var(--h) * var(--s)) 0 0;
+    inset: 0 calc(var(--peek) + 12px);
     width: auto;
     height: auto;
     translate: none;
-    padding: 22px 16px 0;
-    border-radius: 22px 22px 0 0;
-    background: var(--card);
-    box-shadow: 0 -10px 40px rgba(0, 0, 0, .08);
-    opacity: 1;
-    transform: translateY(100%);
-    transition: transform .35s var(--ease), visibility 0s .35s;
+    padding: 24px 0 0;
   }
-  .stage.open .panel {
-    transform: none;
-    transition: transform .35s var(--ease-out), visibility 0s;
+  .stage.panel-left .panel { transform: translateX(-48px); }
+  .stage.open.panel-left .panel { transform: none; }
+
+  .peek:not([hidden]) {
+    position: fixed;
+    z-index: 5;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    display: block;
+    width: calc(var(--peek) + 6px);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
   }
+  .stage.card-right .peek { left: auto; right: 0; }
+  .peek:focus-visible { outline: 1.5px solid var(--ink); outline-offset: -4px; border-radius: 12px; }
+  .credits { transition: opacity .25s; }
+  .stage.open .credits { opacity: 0; visibility: hidden; }
+
   .panel-head h2 { font-size: 34px; }
   .panel-body { margin-right: 0; padding-right: 0; }
 
