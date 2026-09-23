@@ -14,20 +14,21 @@ interface Props {
   onCancel: () => void
 }
 
-type Fields = Pick<Me, 'name' | 'handle' | 'role' | 'company' | 'bio'>
+// El usuario de X no se edita: es la cuenta con la que se entró
+type Fields = Pick<Me, 'name' | 'role' | 'company' | 'bio'>
 
 export function BioPanel({ me, onDraft, onSave, onCancel }: Props) {
   const notify = useNotify()
   const [fields, setFields] = useState<Fields>({
-    name: me.name, handle: me.handle, role: me.role, company: me.company, bio: me.bio,
+    name: me.name, role: me.role, company: me.company, bio: me.bio,
   })
   const [photo, setPhoto] = useState(me.photo)
-  const [invalid, setInvalid] = useState<Partial<Record<'name' | 'handle', boolean>>>({})
+  const [invalid, setInvalid] = useState(false)
   const previewRef = useRef<HTMLSpanElement>(null)
 
   const draft = (f = fields, p = photo): Me => ({
     name: f.name.trim(),
-    handle: f.handle.trim(),
+    handle: me.handle,
     role: f.role.trim(),
     company: f.company.trim(),
     bio: f.bio.trim(),
@@ -36,7 +37,6 @@ export function BioPanel({ me, onDraft, onSave, onCancel }: Props) {
   })
 
   const set = (key: keyof Fields, value: string) => {
-    if (key === 'handle') value = value.replace(/^@/, '').replace(/[^A-Za-z0-9_]/g, '')
     const next = { ...fields, [key]: value }
     setFields(next)
     onDraft(draft(next))
@@ -62,9 +62,8 @@ export function BioPanel({ me, onDraft, onSave, onCancel }: Props) {
   const submit = (ev: FormEvent) => {
     ev.preventDefault()
     const next = draft()
-    const bad = { name: !next.name, handle: !next.handle }
-    setInvalid(bad)
-    if (bad.name || bad.handle) return
+    setInvalid(!next.name)
+    if (!next.name) return
     onSave(next)
   }
 
@@ -88,13 +87,14 @@ export function BioPanel({ me, onDraft, onSave, onCancel }: Props) {
         </div>
       </div>
 
-      <label className={`field${invalid.name ? ' invalid' : ''}`} style={at(1)}><span>Nombre</span>
+      <label className={`field${invalid ? ' invalid' : ''}`} style={at(1)}><span>Nombre</span>
         <input {...field('name')} maxLength={40} required autoComplete="name" />
       </label>
 
-      <label className={`field${invalid.handle ? ' invalid' : ''}`} style={at(2)}><span>Usuario de X</span>
-        <span className="prefixed"><input {...field('handle')} maxLength={15} required spellCheck={false} autoComplete="off" /></span>
-      </label>
+      <div className="field" style={at(2)}><span>Usuario de X</span>
+        <span className="prefixed"><input value={me.handle} readOnly aria-label="Usuario de X" /></span>
+        <small className="field-note">Es tu cuenta de X, no se puede cambiar.</small>
+      </div>
 
       <div className="two-col" style={at(3)}>
         <label className="field"><span>Rol</span><input {...field('role')} maxLength={40} /></label>

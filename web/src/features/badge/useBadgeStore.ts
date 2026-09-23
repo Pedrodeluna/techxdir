@@ -81,7 +81,7 @@ export function useBadgeStore(userId: string | null) {
 
     const { me } = next
     if (me !== prev.me) {
-      updateProfile({ name: me.name, handle: me.handle, role: me.role, company: me.company, bio: me.bio })
+      updateProfile({ name: me.name, role: me.role, company: me.company, bio: me.bio })
         .catch(() => { /* la copia local sigue; se reintenta en el próximo cambio */ })
     }
     const added = next.myEvents.filter(id => !prev.myEvents.includes(id))

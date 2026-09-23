@@ -2,6 +2,7 @@
 //
 //   GET   /functions/v1/profile   → the caller's profile
 //   PATCH /functions/v1/profile   → update name, handle, role, company, bio, photo_url
+//                                   (handle only while it is still empty)
 //
 // The function runs as the caller (their JWT is forwarded), so row level
 // security decides what it can read and write.
@@ -43,6 +44,7 @@ Deno.serve(async req => {
       .select(COLUMNS)
       .single()
     if (error?.code === '23505') return json({ error: 'That handle is already taken' }, 409)
+    if (error?.code === '42501') return json({ error: 'The handle cannot be changed' }, 403)
     if (error) return json({ error: 'Could not save the profile' }, 500)
     return json(data)
   }
