@@ -15,6 +15,8 @@ import '../../styles/badge.css'
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches
 const CAN_HOVER = matchMedia('(hover: hover)').matches
 const NARROW = matchMedia('(max-width: 899px)') // mismo corte que badge.css
+const SWIPE_MIN = 60 // px de arrastre horizontal para abrir o cerrar
+const SWIPE_SLOP = 10 // px antes de decidir si el gesto es horizontal o un scroll
 
 type Side = 'left' | 'right' | null
 
@@ -33,6 +35,8 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
   const [peopleTab, setPeopleTab] = useState<PeopleTab>('match')
   const [shareOpen, setShareOpen] = useState(false)
 
+  const stageRef = useRef<HTMLElement>(null)
+  const moverRef = useRef<HTMLDivElement>(null)
   const cardRef = useRef<HTMLDivElement>(null)
   const tiltRef = useRef<HTMLDivElement>(null)
   const frontRef = useRef<HTMLElement>(null)
@@ -155,11 +159,12 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
     }, MOVE_MS)
   }
 
-  const open = (section: Section, zone: HTMLElement, ev: MouseEvent) => {
+  // zone y ev faltan cuando se abre arrastrando la tarjeta (sin onda)
+  const open = (section: Section, zone?: HTMLElement, ev?: MouseEvent) => {
     if (busy.current) return
     if (current === section) return close()
 
-    ripple(zone, ev)
+    if (zone && ev) ripple(zone, ev)
     const side = SIDE[section]
 
     if (current) {
@@ -209,7 +214,81 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
 
   // los manejadores globales leen siempre la última versión de close()
   const closeRef = useRef(close)
-  useLayoutEffect(() => { closeRef.current = close })
+  const openRef = useRef(open)
+  useLayoutEffect(() => {
+    closeRef.current = close
+    openRef.current = open
+  })
+
+  /* ───────── Móvil: arrastrar la tarjeta ─────────
+     En el centro, arrastrarla a un lado abre la sección de ese lado
+     (izquierda: eventos, derecha: bio). Con un panel abierto, arrastrar
+     la franja que asoma hacia el centro vuelve al menú. */
+  useEffect(() => {
+    const stageEl = stageRef.current
+    const mover = moverRef.current
+    if (!stageEl || !mover) return
+    let drag: { id: number; x: number; y: number; dx: number; dir: number; on: boolean } | null = null
+    let swiped = false
+
+    const reset = () => {
+      mover.classList.remove('dragging')
+      mover.style.translate = ''
+      drag = null
+    }
+    const onDown = (e: PointerEvent) => {
+      swiped = false
+      if (!NARROW.matches || busy.current || !e.isPrimary) return
+      const target = e.target as Element
+      const side = currentRef.current ? SIDE[currentRef.current] : null
+      // dir: hacia dónde puede ir la tarjeta (0 = a los dos lados)
+      if (!side && target.closest('.face.front') && !target.closest('.share-btn')) drag = { id: e.pointerId, x: e.clientX, y: e.clientY, dx: 0, dir: 0, on: false }
+      else if (side && target.closest('.peek')) drag = { id: e.pointerId, x: e.clientX, y: e.clientY, dx: 0, dir: side === 'left' ? 1 : -1, on: false }
+    }
+    const onMove = (e: PointerEvent) => {
+      if (!drag || e.pointerId !== drag.id) return
+      const dx = e.clientX - drag.x
+      const dy = e.clientY - drag.y
+      if (!drag.on) {
+        if (Math.abs(dy) > SWIPE_SLOP && Math.abs(dy) > Math.abs(dx)) return reset() // es un scroll
+        if (Math.abs(dx) < SWIPE_SLOP) return
+        drag.on = true
+        mover.classList.add('dragging')
+        ;(e.target as Element).setPointerCapture?.(e.pointerId)
+      }
+      drag.dx = drag.dir ? Math.max(0, dx * drag.dir) * drag.dir : dx
+      mover.style.translate = `${drag.dx}px 0`
+    }
+    const onUp = (e: PointerEvent) => {
+      if (!drag || e.pointerId !== drag.id) return
+      const { dx, on } = drag
+      reset()
+      if (!on) return
+      swiped = true // el clic que sigue al arrastre no debe abrir ni cerrar nada
+      if (Math.abs(dx) < SWIPE_MIN) return
+      if (currentRef.current) closeRef.current()
+      else openRef.current(dx < 0 ? 'events' : 'bio')
+    }
+    const onClick = (e: globalThis.MouseEvent) => {
+      if (!swiped) return
+      swiped = false
+      e.preventDefault()
+      e.stopPropagation()
+    }
+
+    stageEl.addEventListener('pointerdown', onDown)
+    stageEl.addEventListener('pointermove', onMove)
+    stageEl.addEventListener('pointerup', onUp)
+    stageEl.addEventListener('pointercancel', reset)
+    stageEl.addEventListener('click', onClick, true)
+    return () => {
+      stageEl.removeEventListener('pointerdown', onDown)
+      stageEl.removeEventListener('pointermove', onMove)
+      stageEl.removeEventListener('pointerup', onUp)
+      stageEl.removeEventListener('pointercancel', reset)
+      stageEl.removeEventListener('click', onClick, true)
+    }
+  }, [ready])
 
   useEffect(() => {
     // clic en un espacio en blanco (fuera de la acreditación y del panel): volver al menú
@@ -268,8 +347,8 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
   if (!ready) return <main className="stage" aria-busy="true" />
 
   return (
-    <main className={stageClass}>
-      <div className="mover">
+    <main className={stageClass} ref={stageRef}>
+      <div className="mover" ref={moverRef}>
         <div className="tilt" ref={tiltRef}>
           <div className="card" ref={cardRef}>
             <BadgeFront
