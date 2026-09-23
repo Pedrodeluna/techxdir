@@ -1,6 +1,6 @@
 import type { MouseEvent, Ref } from 'react'
 import { Avatar, OrgLogo, Photo } from './bits'
-import { cardId, contacts, fmtDate, joinedYear, myEventsSplit, myOrgs, type BadgeState, type Section } from './model'
+import { cardId, contacts, peopleOf, fmtDate, joinedYear, myEventsSplit, myOrgs, type BadgeState, type Section } from './model'
 
 /* Anverso: la acreditación es el menú */
 
@@ -17,13 +17,15 @@ interface Props {
 export function BadgeFront({ faceRef, state, current, shareOpen, shareBtnRef, onOpen, onShare }: Props) {
   const { me } = state
   const { past, upcoming } = myEventsSplit(state.myEvents)
-  const people = contacts(state.myEvents)
+  const people = contacts(state.myEvents, peopleOf(state))
   const shown = people.slice(0, 4)
   const orgs = myOrgs(state.myEvents)
   const orgsShown = orgs.slice(0, 4)
 
   let sub = null
-  if (upcoming[0]) {
+  if (state.live) {
+    // con sesión las fechas aún son de ejemplo: no se muestran en la acreditación
+  } else if (upcoming[0]) {
     const d = fmtDate(upcoming[0])
     sub = <>Próximo<b>{upcoming[0].short} · {d.day} {d.mon}</b></>
   } else if (past[0]) {

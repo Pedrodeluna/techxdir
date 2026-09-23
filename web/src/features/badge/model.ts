@@ -5,7 +5,12 @@ import { SAMPLE, type Me, type Org, type Person, type TechEvent } from '../../da
 export interface BadgeState {
   me: Me
   myEvents: string[]
+  /** true con sesión: aún no hay personas reales y las fechas son de ejemplo */
+  live?: boolean
 }
+
+/** Personas que puede ver esta acreditación: las de ejemplo solo en la acreditación de ejemplo */
+export const peopleOf = (state: BadgeState): Person[] => (state.live ? [] : PEOPLE)
 
 export type Section = 'bio' | 'events' | 'people'
 
@@ -89,18 +94,18 @@ export const pillLabel = (e: TechEvent, on: boolean) =>
 
 /* ───────── Datos derivados ───────── */
 
-export function contacts(myEvents: string[]): Contact[] {
+export function contacts(myEvents: string[], people: Person[] = PEOPLE): Contact[] {
   const mine = new Set(myEvents)
-  return PEOPLE
+  return people
     .map(p => ({ ...p, shared: p.events.filter(id => mine.has(id)).map(id => EV.get(id)!).sort(byDateDesc) }))
     .filter(p => p.shared.length)
     .sort((a, b) => b.shared.length - a.shared.length || a.name.localeCompare(b.name, 'es'))
 }
 
 // personas con las que no has coincidido en ningún evento
-export function others(myEvents: string[]): Contact[] {
-  const matched = new Set(contacts(myEvents).map(p => p.id))
-  return PEOPLE
+export function others(myEvents: string[], people: Person[] = PEOPLE): Contact[] {
+  const matched = new Set(contacts(myEvents, people).map(p => p.id))
+  return people
     .filter(p => !matched.has(p.id))
     .map(p => ({ ...p, shared: [] }))
     .sort((a, b) => b.events.length - a.events.length || a.name.localeCompare(b.name, 'es'))
@@ -131,7 +136,7 @@ export function myOrgs(myEvents: string[]) {
 
 export function shareText(state: BadgeState) {
   const { past, upcoming } = myEventsSplit(state.myEvents)
-  const n = contacts(state.myEvents).length
+  const n = contacts(state.myEvents, peopleOf(state)).length
   let text = `Mi acreditación en techxdir: ${plural(past.length, 'evento tech', 'eventos tech')} y ${plural(n, 'persona', 'personas')} con las que he coincidido.`
   if (upcoming[0]) text += ` Próximo: ${upcoming[0].name}. ¿Coincidimos?`
   return text

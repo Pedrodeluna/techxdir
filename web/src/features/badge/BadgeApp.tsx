@@ -2,13 +2,14 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEv
 import type { Me } from '../../data/sample'
 import { BadgeBack, BadgeFront } from './BadgeFront'
 import { focusQuiet, replay } from './dom'
-import { EV, LEAN, MOVE_MS, SIDE, contacts, myEventsSplit, plural, type Section } from './model'
+import { EV, LEAN, MOVE_MS, SIDE, contacts, peopleOf, myEventsSplit, plural, type Section } from './model'
 import { BioPanel } from './panels/BioPanel'
 import { EventsPanel, type EventsTab } from './panels/EventsPanel'
 import { PeoplePanel, type PeopleTab } from './panels/PeoplePanel'
 import { ShareMenu } from './ShareMenu'
 import { useNotify } from './Toast'
 import { useBadgeStore } from './useBadgeStore'
+import { useAuth } from '../../lib/auth-context'
 import '../../styles/badge.css'
 
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -18,9 +19,11 @@ type Side = 'left' | 'right' | null
 
 /* La escena: la tarjeta gira y se aparta, y el panel aparece al otro lado */
 
-export function BadgeApp() {
+/** sample = acreditación de ejemplo (/ejemplo, o todo en modo demo) */
+export function BadgeApp({ sample = false }: { sample?: boolean }) {
   const notify = useNotify()
-  const [state, update] = useBadgeStore()
+  const { session } = useAuth()
+  const [state, update, ready] = useBadgeStore(sample ? null : session?.user.id ?? null)
   const [current, setCurrent] = useState<Section | null>(null) // sección abierta en el panel
   const [panel, setPanel] = useState<{ section: Section; key: number; mode: 'initial' | 'switch' } | null>(null)
   const [stage, setStage] = useState({ open: false, cardRight: false, panelLeft: false, swapping: false })
@@ -241,16 +244,18 @@ export function BadgeApp() {
     if (focusBtn) focusQuiet(shareBtnRef.current)
   }, [])
 
-  const people = contacts(state.myEvents)
+  const people = contacts(state.myEvents, peopleOf(state))
   const { past, upcoming } = myEventsSplit(state.myEvents)
   const heads: Record<Section, [string, string]> = {
     bio: ['Tu bio', 'Los cambios se ven al momento en la acreditación.'],
-    events: ['Eventos', `${plural(past.length, 'asistido', 'asistidos')} · ${plural(upcoming.length, 'próximo', 'próximos')}`],
+    events: ['Eventos', `${plural(past.length, 'asistido', 'asistidos')} · ${plural(upcoming.length, 'próximo', 'próximos')}${state.live ? ' · fechas de ejemplo' : ''}`],
     people: ['Personas', `Has coincidido con ${plural(people.length, 'persona', 'personas')}.`],
   }
 
   const stageClass = ['stage', stage.open && 'open', stage.cardRight && 'card-right', stage.panelLeft && 'panel-left', stage.swapping && 'swapping']
     .filter(Boolean).join(' ')
+
+  if (!ready) return <main className="stage" aria-busy="true" />
 
   return (
     <main className={stageClass}>

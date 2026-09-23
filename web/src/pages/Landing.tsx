@@ -65,7 +65,7 @@ export function Landing() {
           </p>
           <div className="lp-actions">
             <Link to="/entrar" className="primary lp-cta">Recoge tu acreditación</Link>
-            <Link to="/acreditacion" className="link">Ver una de ejemplo</Link>
+            <Link to="/ejemplo" className="link">Ver una de ejemplo</Link>
           </div>
         </section>
 

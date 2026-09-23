@@ -1,7 +1,7 @@
 import { Fragment, useLayoutEffect, useRef, useState, type CSSProperties, type RefObject } from 'react'
 import { Avatar } from '../bits'
 import { at, focusQuiet, replay } from '../dom'
-import { EV, PEOPLE, byDateAsc, byDateDesc, contacts, fmtDate, isPast, others, plural, type BadgeState } from '../model'
+import { EV, PEOPLE, peopleOf, byDateAsc, byDateDesc, contacts, fmtDate, isPast, others, plural, type BadgeState } from '../model'
 
 export type PeopleTab = 'match' | 'others' // 'match' = con las que coincidiste · 'others' = el resto
 type Mode = 'initial' | 'quiet' | 'tab' | 'enter'
@@ -56,9 +56,10 @@ export function PeoplePanel({ state, bodyRef, tab, setTab }: Props) {
     return <PersonView key={render.key} id={personId} state={state} onBack={backToPeople} />
   }
 
-  const matchCount = contacts(state.myEvents).length
+  const all = peopleOf(state)
+  const matchCount = contacts(state.myEvents, all).length
   const isMatch = tab === 'match'
-  const people = isMatch ? contacts(state.myEvents) : others(state.myEvents)
+  const people = isMatch ? contacts(state.myEvents, all) : others(state.myEvents, all)
   const q = query.trim().toLowerCase().replace(/^@/, '')
   const shown = q
     ? people.filter(p => [p.name, p.handle, p.role, ...p.events.map(id => EV.get(id)?.name || '')].some(s => s.toLowerCase().includes(q)))
@@ -73,7 +74,7 @@ export function PeoplePanel({ state, bodyRef, tab, setTab }: Props) {
       <div className="seg" role="tablist" aria-label="Filtrar personas">
         <button className="seg-btn" type="button" role="tab" aria-selected={isMatch} onClick={() => changeTab('match')}>Coincidencias<b>{matchCount}</b></button>
         <span className="seg-sep" aria-hidden="true" />
-        <button className="seg-btn" type="button" role="tab" aria-selected={!isMatch} onClick={() => changeTab('others')}>Otros<b>{PEOPLE.length - matchCount}</b></button>
+        <button className="seg-btn" type="button" role="tab" aria-selected={!isMatch} onClick={() => changeTab('others')}>Otros<b>{all.length - matchCount}</b></button>
       </div>
       <input
         className="search"

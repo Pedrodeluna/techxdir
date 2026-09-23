@@ -4,7 +4,7 @@ import { Avatar, OrgLogo } from '../bits'
 import { at, focusQuiet, replay } from '../dom'
 import { downloadIcs } from '../lib/download'
 import {
-  EV, EVENTS, ORG, PEOPLE, byDateAsc, byDateDesc, contacts, contactsAt, fmtDate, fmtRange, isPast,
+  EV, EVENTS, ORG, peopleOf, byDateAsc, byDateDesc, contacts, contactsAt, fmtDate, fmtRange, isPast,
   myEventsSplit, orgEvents, orgOf, pillLabel, plural, whenLabel, type BadgeState,
 } from '../model'
 
@@ -140,7 +140,7 @@ export function EventsPanel({ state, toggle, bodyRef, tab, setTab, escRef }: Pro
     return `← ${prev.type === 'org' ? ORG.get(prev.id)!.name : EV.get(prev.id)!.name}`
   }
 
-  const people = contacts(state.myEvents)
+  const people = contacts(state.myEvents, peopleOf(state))
   const mine = new Set(state.myEvents)
   const itemProps = (e: TechEvent, i: number) => ({
     e, i,
@@ -203,7 +203,7 @@ export function EventsPanel({ state, toggle, bodyRef, tab, setTab, escRef }: Pro
   }
 
   // lista
-  const listPeople = contacts(listMine)
+  const listPeople = contacts(listMine, peopleOf(state))
   const listSet = new Set(listMine)
   let groups: [string, TechEvent[]][]
   if (tab === 'mine') {
@@ -295,7 +295,7 @@ function EventView({ id, state, backLabel, onBack, onOrg, onToggle }: EventViewP
   const on = state.myEvents.includes(e.id)
   const r = fmtRange(e)
   const org = orgOf(e)
-  const attendees = PEOPLE.filter(p => p.events.includes(e.id)).sort((a, b) => a.name.localeCompare(b.name, 'es'))
+  const attendees = peopleOf(state).filter(p => p.events.includes(e.id)).sort((a, b) => a.name.localeCompare(b.name, 'es'))
   const total = attendees.length + (on ? 1 : 0)
   const { me } = state
 

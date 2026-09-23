@@ -1,5 +1,5 @@
 import type { Org } from '../../../data/sample'
-import { contacts, fmtDate, hash, initials, joinedYear, myEventsSplit, myOrgs, plural, type BadgeState } from '../model'
+import { contacts, peopleOf, fmtDate, hash, initials, joinedYear, myEventsSplit, myOrgs, plural, type BadgeState } from '../model'
 
 /* Imagen para compartir en redes. Canvas puro: no depende del DOM de la acreditación. */
 
@@ -54,7 +54,7 @@ export async function renderCardImage(state: BadgeState): Promise<Blob> {
 
   const me = state.me
   const { past, upcoming } = myEventsSplit(state.myEvents)
-  const people = contacts(state.myEvents)
+  const people = contacts(state.myEvents, peopleOf(state))
   const orgs = myOrgs(state.myEvents)
 
   // fondo y tarjeta
@@ -133,7 +133,7 @@ export async function renderCardImage(state: BadgeState): Promise<Blob> {
   const colW = cw - P - ex
   text('EVENTOS', ex, 152, `500 17px ${MONO}`, MUTED, 'left', 2.5)
   text(String(past.length), ex - 6, 408, `300 172px ${SANS}`, INK, 'left', -8)
-  const next = upcoming[0] || past[0]
+  const next = state.live ? undefined : upcoming[0] || past[0]
   if (next) {
     const d = fmtDate(next)
     text(upcoming[0] ? 'Próximo' : 'Último', ex, 458, `400 22px ${SANS}`, MUTED)
