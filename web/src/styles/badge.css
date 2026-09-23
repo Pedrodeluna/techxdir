@@ -215,22 +215,6 @@
   font-weight: 300;
   letter-spacing: -.05em;
 }
-.photo-tag {
-  position: absolute;
-  left: .7em;
-  bottom: .7em;
-  padding: .45em .7em;
-  border-radius: 99px;
-  background: var(--card);
-  font: 500 .6em/1 var(--mono);
-  letter-spacing: .12em;
-  text-transform: uppercase;
-  opacity: 0;
-  translate: 0 4px;
-  transition: opacity .25s, translate .35s var(--ease-out);
-}
-.zone-photo:hover .photo-tag,
-.zone-photo.active .photo-tag { opacity: 1; translate: 0 0; }
 
 /* eventos */
 .zone-events {
