@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>techxdir · Acreditación</title>
+  <meta name="description" content="Tu acreditación de eventos tech: bio, eventos a los que has ido y personas con las que has coincidido.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <main class="stage" id="stage">
+    <div class="mover" id="mover">
+      <div class="tilt" id="tilt">
+        <div class="card" id="card">
+          <section class="face front" id="front" aria-label="Acreditación"></section>
+          <div class="face back" aria-hidden="true">
+            <span class="slot"></span>
+            <span class="back-mark">techx<b>dir</b></span>
+            <span class="back-foot">ATTENDEE · 2026</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <aside class="panel" id="panel" aria-live="polite" inert></aside>
+
+    <div class="share">
+      <div class="share-menu" id="shareMenu" role="menu" aria-label="Compartir acreditación" hidden>
+        <img class="share-preview" id="sharePreview" alt="Vista previa de la imagen de tu acreditación">
+        <button type="button" role="menuitem" data-share="native" hidden>Compartir…</button>
+        <button type="button" role="menuitem" data-share="x" class="ext">Publicar en X</button>
+        <button type="button" role="menuitem" data-share="linkedin" class="ext">LinkedIn</button>
+        <button type="button" role="menuitem" data-share="whatsapp" class="ext">WhatsApp</button>
+        <button type="button" role="menuitem" data-share="copy">Copiar texto y enlace</button>
+        <button type="button" role="menuitem" data-share="image">Descargar imagen</button>
+      </div>
+    </div>
+
+    <footer class="credits">
+      A side project by
+      <a href="https://x.com/pedrodelunah" target="_blank" rel="noopener noreferrer">@pedrodelunah</a>,
+      <a href="https://x.com/franms_dev" target="_blank" rel="noopener noreferrer">@franms_dev</a>
+      and <a href="https://x.com/elashera" target="_blank" rel="noopener noreferrer">@elashera</a>
+    </footer>
+  </main>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
