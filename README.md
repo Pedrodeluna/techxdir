@@ -209,7 +209,7 @@ curl http://127.0.0.1:55321/functions/v1/profile \
    supabase functions deploy profile
    ```
 3. In the Supabase dashboard, set the production Site URL and add `https://<your-domain>/auth/callback` to the redirect URLs. Configure **Twitter (Deprecated)** and **Allow users without an email** as above. Do not leave the default `http://localhost:3000` Site URL in a production deployment.
-4. Build the frontend with the hosted `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`, and deploy `web/dist` to any static host. Configure the host to serve `index.html` for all routes (single-page app).
+4. Build the frontend with the hosted `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`, and deploy `web/dist` to any static host. Configure the host to serve `index.html` for all routes (single-page app). For the Vercel project whose root directory is `web`, `web/vercel.json` supplies this rewrite so direct visits to `/entrar` and OAuth returns to `/auth/callback` work.
 
 For automatic deployment when a pull request is merged into `main`, connect this repository in Supabase Dashboard → Project Settings → Integrations → GitHub Integration. Set the working directory to `.` and enable **Deploy to production** for `main`. Supabase applies new migrations and deploys Edge Functions declared in `supabase/config.toml`, including `profile`. This does not require a GitHub Actions workflow or repository secrets. **Auth settings in `config.toml` are ignored for production deployments by this integration**; configure the hosted provider, its email option, Site URL, and redirect URLs in the Supabase Dashboard.
 
