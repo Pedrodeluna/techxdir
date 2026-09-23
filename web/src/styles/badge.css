@@ -1,39 +1,3 @@
-:root {
-  --bg: #ebeae6;
-  --card: #fbfbf9;
-  --ink: #111113;
-  --muted: #8b8a90;
-  --line: rgba(17, 17, 19, .1);
-  --soft: rgba(17, 17, 19, .045);
-  --accent: #ff4d00;
-
-  /* tamaño de la acreditación: lo más grande que quepa en alto */
-  --w: min(440px, calc((100dvh - 130px) / 1.5), calc(100vw - 32px));
-  --h: calc(var(--w) * 1.5);
-  --gap: clamp(40px, 6vw, 96px);
-  --pw: min(480px, calc(100vw - var(--w) - var(--gap) - 96px));
-  --r: 20px;
-
-  --move: 1.2s;
-  --ease: cubic-bezier(.65, 0, .25, 1);
-  --ease-out: cubic-bezier(.2, .8, .2, 1);
-  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-}
-
-*, *::before, *::after { box-sizing: border-box; margin: 0; }
-
-body {
-  background: var(--bg);
-  color: var(--ink);
-  font-family: 'Space Grotesk', system-ui, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  overflow: hidden;
-}
-
-button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
-ul { list-style: none; padding: 0; }
-.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-
 /* ───────── Escena ───────── */
 
 .stage {
@@ -690,8 +654,11 @@ ul { list-style: none; padding: 0; }
     --s: .32;
   }
 
+  /* en móvil nada gira: la tarjeta sube y el panel entra desde abajo, como una hoja */
+  .mover { transition: transform .35s var(--ease-out); }
   .stage.open .mover {
     transform: translateY(calc(16px + var(--h) * var(--s) / 2 - 50dvh)) scale(var(--s));
+    transition-duration: .45s;
   }
 
   .panel {
@@ -704,10 +671,24 @@ ul { list-style: none; padding: 0; }
     border-radius: 22px 22px 0 0;
     background: var(--card);
     box-shadow: 0 -10px 40px rgba(0, 0, 0, .08);
-    transform: translateY(40px);
+    opacity: 1;
+    transform: translateY(100%);
+    transition: transform .35s var(--ease), visibility 0s .35s;
+  }
+  .stage.open .panel {
+    transform: none;
+    transition: transform .35s var(--ease-out), visibility 0s;
   }
   .panel-head h2 { font-size: 34px; }
   .panel-body { margin-right: 0; padding-right: 0; }
+
+  /* el contenido aparece de una vez, con un fundido corto */
+  .stagger > * { animation: fade .25s ease-out both; animation-delay: 0s; }
+  .panel.swap .panel-head,
+  .panel.swap .panel-body { animation: fade .25s ease-out; }
+}
+@keyframes fade {
+  from { opacity: 0; }
 }
 
 /* Con "reducir movimiento" se quitan los efectos secundarios,

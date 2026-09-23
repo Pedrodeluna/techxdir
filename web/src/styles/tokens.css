@@ -1,0 +1,22 @@
+:root {
+  --bg: #ebeae6;
+  --card: #fbfbf9;
+  --ink: #111113;
+  --muted: #8b8a90;
+  --muted-text: #636268; /* texto secundario legible: 5:1 sobre --bg */
+  --line: rgba(17, 17, 19, .1);
+  --soft: rgba(17, 17, 19, .045);
+  --accent: #ff4d00;
+
+  /* tamaño de la acreditación: lo más grande que quepa en alto */
+  --w: min(440px, calc((100dvh - 130px) / 1.5), calc(100vw - 32px));
+  --h: calc(var(--w) * 1.5);
+  --gap: clamp(40px, 6vw, 96px);
+  --pw: min(480px, calc(100vw - var(--w) - var(--gap) - 96px));
+  --r: 20px;
+
+  --move: 1.2s;
+  --ease: cubic-bezier(.65, 0, .25, 1);
+  --ease-out: cubic-bezier(.2, .8, .2, 1);
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+}

@@ -1,0 +1,259 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-23T13:21:48.078002+00:00",
+  "title": "Design System: techxdir",
+  "extensions": {
+    "colorMeta": {
+      "signal-orange": {
+        "role": "primary",
+        "displayName": "Signal Orange",
+        "canonical": "#ff4d00",
+        "tonalRamp": [
+          "#4a1600",
+          "#7a2400",
+          "#a93200",
+          "#d94000",
+          "#ff4d00",
+          "#ff7a40",
+          "#ffa680",
+          "#ffd3bf"
+        ]
+      },
+      "hall-floor": {
+        "role": "neutral",
+        "displayName": "Hall Floor",
+        "canonical": "#ebeae6",
+        "tonalRamp": [
+          "#262523",
+          "#3e3d3a",
+          "#5a5955",
+          "#7a7974",
+          "#9d9c97",
+          "#c1c0bb",
+          "#ebeae6",
+          "#f6f6f4"
+        ]
+      },
+      "badge-paper": {
+        "role": "neutral",
+        "displayName": "Badge Paper",
+        "canonical": "#fbfbf9",
+        "tonalRamp": [
+          "#282827",
+          "#41413f",
+          "#5e5e5b",
+          "#80807c",
+          "#a3a39f",
+          "#c8c8c4",
+          "#e8e8e5",
+          "#fbfbf9"
+        ]
+      },
+      "press-ink": {
+        "role": "neutral",
+        "displayName": "Press Ink",
+        "canonical": "#111113",
+        "tonalRamp": [
+          "#111113",
+          "#26262a",
+          "#3d3d43",
+          "#57575e",
+          "#75757c",
+          "#96969c",
+          "#babac0",
+          "#e0e0e4"
+        ]
+      },
+      "pencil-grey": {
+        "role": "neutral",
+        "displayName": "Pencil Grey",
+        "canonical": "#8b8a90",
+        "tonalRamp": [
+          "#232326",
+          "#38383b",
+          "#504f54",
+          "#6c6b71",
+          "#8b8a90",
+          "#a9a8ad",
+          "#c8c7cb",
+          "#e6e6e8"
+        ]
+      },
+      "graphite": {
+        "role": "neutral",
+        "displayName": "Graphite",
+        "canonical": "#636268",
+        "tonalRamp": [
+          "#1c1c1e",
+          "#2e2e31",
+          "#434246",
+          "#57565b",
+          "#636268",
+          "#8a898e",
+          "#b3b2b6",
+          "#dcdcde"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display numeral",
+        "purpose": "Event and people counts on the badge."
+      },
+      "headline": {
+        "displayName": "Panel headline",
+        "purpose": "Panel titles."
+      },
+      "title": {
+        "displayName": "Name",
+        "purpose": "Attendee name on the badge."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "List rows, bio, form values."
+      },
+      "label": {
+        "displayName": "Printed field",
+        "purpose": "Labels, dates, handles, IDs. Uppercase."
+      }
+    },
+    "shadows": [
+      {
+        "name": "badge-lift",
+        "value": "0 0 0 1px rgba(17,17,19,.1), 0 2px 4px rgba(0,0,0,.04), 0 40px 80px -40px rgba(0,0,0,.35)",
+        "purpose": "The badge card only."
+      },
+      {
+        "name": "lanyard-slot",
+        "value": "inset 0 1px 2px rgba(0,0,0,.22)",
+        "purpose": "The punched hole at the top of the badge."
+      },
+      {
+        "name": "sheet",
+        "value": "0 -10px 40px rgba(0,0,0,.08)",
+        "purpose": "Mobile bottom sheet panel."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease",
+        "value": "cubic-bezier(.65, 0, .25, 1)",
+        "purpose": "Card turn and move (1.2s)."
+      },
+      {
+        "name": "ease-out",
+        "value": "cubic-bezier(.2, .8, .2, 1)",
+        "purpose": "Entrances, stagger, stamp, toast."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "panel-side",
+        "value": "900px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Main action in a panel or page.",
+      "html": "<button class=\"ds-primary\">Guardar</button>",
+      "css": ".ds-primary{padding:12px 22px;border:0;border-radius:99px;background:#111113;color:#fbfbf9;font:500 15px 'Space Grotesk',system-ui,sans-serif;cursor:pointer;transition:opacity .2s,scale .2s}.ds-primary:hover{opacity:.85}.ds-primary:active{scale:.97}.ds-primary:focus-visible{outline:1.5px solid #111113;outline-offset:3px}"
+    },
+    {
+      "name": "Pill Toggle",
+      "kind": "chip",
+      "refersTo": "pill-toggle",
+      "description": "Mark an event as attended or planned.",
+      "html": "<button class=\"ds-pill\">Voy</button> <button class=\"ds-pill is-on\">Fui ✓</button>",
+      "css": ".ds-pill{padding:7px 13px;border:0;border-radius:99px;background:transparent;box-shadow:inset 0 0 0 1px #111113;color:#111113;font:500 12.5px 'Space Grotesk',system-ui,sans-serif;cursor:pointer;transition:background-color .2s,color .2s}.ds-pill:hover{background:rgba(17,17,19,.045)}.ds-pill.is-on{background:#111113;color:#fbfbf9}.ds-pill:focus-visible{outline:1.5px solid #111113;outline-offset:2px}"
+    },
+    {
+      "name": "Underline Field",
+      "kind": "input",
+      "refersTo": "input-underline",
+      "description": "Every text input.",
+      "html": "<label class=\"ds-field\"><span>Nombre</span><input value=\"Alex Rivera\"></label>",
+      "css": ".ds-field{display:block;font-family:'Space Grotesk',system-ui,sans-serif}.ds-field span{display:block;font:500 10.5px/1 'JetBrains Mono',monospace;letter-spacing:.15em;text-transform:uppercase;color:#8b8a90}.ds-field input{width:100%;padding:10px 0;border:0;border-bottom:1px solid rgba(17,17,19,.1);background:transparent;font:16px 'Space Grotesk',system-ui,sans-serif;color:#111113;transition:border-color .2s}.ds-field input:focus{outline:none;border-bottom-color:#111113}"
+    },
+    {
+      "name": "Tabs",
+      "kind": "nav",
+      "refersTo": "tabs",
+      "description": "Switch lists inside a panel.",
+      "html": "<div class=\"ds-tabs\"><button class=\"on\">Mis eventos<b>7</b></button><button>Descubrir<b>6</b></button></div>",
+      "css": ".ds-tabs{display:flex;gap:22px;border-bottom:1px solid rgba(17,17,19,.1)}.ds-tabs button{position:relative;padding:10px 0;border:0;background:none;font:15px 'Space Grotesk',system-ui,sans-serif;color:#8b8a90;cursor:pointer}.ds-tabs button:hover{color:#111113}.ds-tabs button.on{color:#111113;box-shadow:inset 0 -1.5px 0 #111113}.ds-tabs b{margin-left:4px;font:11px 'JetBrains Mono',monospace;color:#8b8a90}"
+    },
+    {
+      "name": "Badge Card",
+      "kind": "card",
+      "refersTo": "badge-card",
+      "description": "The signature object: vertical paper badge with a lanyard slot.",
+      "html": "<div class=\"ds-badge\"><span class=\"slot\"></span><div class=\"top\"><b>techx<i>dir</i></b><small>ATTENDEE</small></div><strong class=\"num\">7</strong><small>EVENTOS</small></div>",
+      "css": ".ds-badge{position:relative;width:220px;height:330px;padding:28px 20px;border-radius:20px;background:#fbfbf9;box-shadow:0 0 0 1px rgba(17,17,19,.1),0 2px 4px rgba(0,0,0,.04),0 40px 80px -40px rgba(0,0,0,.35);font-family:'Space Grotesk',system-ui,sans-serif;color:#111113}.ds-badge .slot{position:absolute;top:10px;left:50%;width:48px;height:8px;translate:-50% 0;border-radius:99px;background:#ebeae6;box-shadow:inset 0 1px 2px rgba(0,0,0,.22)}.ds-badge .top{display:flex;justify-content:space-between;align-items:baseline}.ds-badge i{font-style:normal;color:#8b8a90}.ds-badge small{font:500 9px 'JetBrains Mono',monospace;letter-spacing:.15em;color:#8b8a90}.ds-badge .num{display:block;margin-top:40px;font-size:88px;font-weight:300;line-height:1;letter-spacing:-.06em}"
+    },
+    {
+      "name": "Toast",
+      "kind": "custom",
+      "refersTo": "toast",
+      "description": "Short confirmation at the bottom.",
+      "html": "<div class=\"ds-toast\">Acreditación actualizada</div>",
+      "css": ".ds-toast{display:inline-block;padding:10px 16px;border-radius:99px;background:#111113;color:#fbfbf9;font:13.5px 'Space Grotesk',system-ui,sans-serif}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Lanyard Object",
+    "overview": "techxdir is a printed event badge, not a web page that describes one. A single vertical card of warm paper hangs in a grey hall, with a punched lanyard slot at the top. Everything the app does happens by touching that card: it turns on its vertical axis, moves aside, and a panel appears next to it. The world is physical and quiet. There is one colour signal, and it is small.",
+    "keyCharacteristics": [
+      "One object on one surface: a paper badge on a hall floor.",
+      "Light numerals (300) set big and tight, mono uppercase labels set small and wide.",
+      "Ink and paper. Orange only as a signal dot, an invalid underline, or an accent.",
+      "Depth from a single long soft shadow and a hairline edge, never from colour blocks.",
+      "A full rotateY turn (1.2 s) is the page transition."
+    ],
+    "rules": [
+      {
+        "name": "The One Signal Rule",
+        "body": "Signal Orange covers less than 2 % of any screen. If two orange things are visible at once, one of them is wrong.",
+        "section": "colors"
+      },
+      {
+        "name": "The Paper-on-Floor Rule",
+        "body": "Surfaces are Badge Paper on Hall Floor. Do not add a third surface colour.",
+        "section": "colors"
+      },
+      {
+        "name": "The Printed Field Rule",
+        "body": "Anything a badge printer would stamp (labels, dates, IDs, handles) is mono. Anything a person says (names, bio, event names) is grotesk.",
+        "section": "typography"
+      },
+      {
+        "name": "The Light Numeral Rule",
+        "body": "Big numbers are weight 300 with negative tracking. Never bold a number.",
+        "section": "typography"
+      },
+      {
+        "name": "The Single Object Rule",
+        "body": "Only the badge (and its share preview) is lifted. Panels, lists and buttons stay flat.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do keep the badge as the single lifted object on Hall Floor.",
+      "Do set labels, dates, handles and IDs in JetBrains Mono uppercase with .15em tracking.",
+      "Do use full pills for everything pressable and underlines for everything typed.",
+      "Do keep Signal Orange to one small signal per view.",
+      "Do keep copy short and in Spanish.",
+      "Do use Graphite, not Pencil Grey, for any secondary sentence a person must read.",
+      "Do label sample data (people, dates) as an example wherever a visitor could take it as real."
+    ],
+    "donts": [
+      "Don't use gradients, icon feature grids, logo walls, or testimonials.",
+      "Don't switch to a dark neon \"hacker\" look.",
+      "Don't add boxed inputs or card-in-card containers.",
+      "Don't bold big numbers, or set names in mono."
+    ]
+  }
+}

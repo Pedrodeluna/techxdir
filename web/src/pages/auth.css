@@ -1,0 +1,126 @@
+/* Entrar: una acreditación en blanco que recoges en el mostrador (DESIGN.md) */
+
+.au {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+.au-top { padding: 24px clamp(16px, 4vw, 56px); }
+.au-mark { font-size: 20px; color: var(--ink); text-decoration: none; }
+.au-mark:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 3px; }
+
+.au-stage {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 8px 16px 48px;
+}
+
+/* la misma tarjeta que la acreditación, con el tamaño de la real */
+.au-badge {
+  --w: min(420px, calc(100vw - 32px));
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: var(--w);
+  min-height: min(calc(var(--w) * 1.5), 640px);
+  padding: 24px 24px 20px;
+  border-radius: 20px;
+  background: var(--card);
+  box-shadow:
+    0 0 0 1px var(--line),
+    0 2px 4px rgba(0, 0, 0, .04),
+    0 40px 80px -40px rgba(0, 0, 0, .35);
+  animation: enter .9s var(--ease-out) backwards;
+}
+.au-badge .slot { top: 15px; width: 54px; height: 9px; }
+.au-badge .top { margin-bottom: 0; }
+.au-badge .wordmark { font-size: 17px; }
+.au-badge .tier { font-size: 10.5px; }
+
+.au-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 44px 0 28px;
+}
+.au-body form { display: flex; flex-direction: column; gap: 18px; }
+.au-body h1 {
+  font-size: clamp(34px, 9vw, 42px);
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: -.04em;
+  text-wrap: balance;
+}
+.au-lede { font-size: 15px; line-height: 1.5; color: var(--ink); }
+.au-email { font-family: var(--mono); font-size: 14px; }
+
+.au-x {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 14px 22px;
+  border-radius: 99px;
+  background: var(--ink);
+  color: var(--card);
+  font-weight: 500;
+  transition: opacity .2s, scale .2s;
+}
+.au-x svg { width: 16px; height: 16px; fill: currentColor; }
+.au-x:hover:not(:disabled) { opacity: .85; }
+.au-x:active:not(:disabled) { scale: .97; }
+.au-x:focus-visible,
+.au-submit:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 3px; }
+
+.au-or {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font: 500 10.5px/1 var(--mono);
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.au-or::before,
+.au-or::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+
+/* el email es la acción secundaria: botón de contorno */
+.au-submit {
+  align-self: stretch;
+  padding: 14px 22px;
+  text-align: center;
+  text-decoration: none;
+}
+.au-body form .au-submit {
+  background: transparent;
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink);
+}
+.au-body form .au-submit:hover:not(:disabled) { opacity: 1; background: var(--soft); }
+
+.au-x:disabled,
+.au-submit:disabled,
+.au-body .field input:disabled { opacity: .45; cursor: not-allowed; }
+
+.au-error { margin-top: -8px; font-size: 13.5px; line-height: 1.4; color: var(--ink); }
+
+.au-demo {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--soft);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.au-demo .link { font-size: inherit; color: var(--ink); }
+
+.au-foot { margin-top: auto; display: flex; }
+.au-foot .au-submit { flex: 1; }
+.au-badge-foot { display: flex; justify-content: space-between; padding-top: 14px; border-top: 1px solid var(--line); }
+
+::placeholder { color: var(--muted-text); opacity: 1; }
+
+.au-lede + .field { margin-top: 10px; }
+.au-email { overflow-wrap: anywhere; }

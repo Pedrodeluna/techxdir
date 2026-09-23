@@ -1,5 +1,57 @@
-/* Datos de ejemplo. Más adelante vendrán de la API (usuario de X + eventos). */
-window.TXD_DATA = {
+/* Datos de ejemplo. Más adelante vendrán de Supabase (usuario de X + eventos).
+   Las personas son inventadas: no son usuarios reales. */
+
+export type OrgShape = 'circle' | 'square' | 'squircle' | 'hex' | 'diamond' | 'ring'
+
+export interface Org {
+  id: string
+  name: string
+  /** Monograma generado, o la URL de una imagen */
+  logo: { mark: string; shape: OrgShape } | string
+}
+
+export interface TechEvent {
+  id: string
+  org: string
+  name: string
+  short: string
+  city: string
+  date: string
+  end: string | null
+  url: string | null
+  kind: string
+  color: string
+}
+
+export interface Person {
+  id: string
+  name: string
+  handle: string
+  role: string
+  bio: string
+  events: string[]
+}
+
+export interface Me {
+  name: string
+  handle: string
+  role: string
+  company: string
+  bio: string
+  photo: string | null
+  /** año en que se sumó a la comunidad */
+  joined?: number
+}
+
+export interface SampleData {
+  orgs: Org[]
+  events: TechEvent[]
+  people: Person[]
+  me: Me
+  myEvents: string[]
+}
+
+export const SAMPLE: SampleData = {
   /* Organizaciones: cada una organiza uno o varios eventos.
      logo: { mark, shape } genera un logotipo monograma; también admite una URL de imagen. */
   orgs: [
@@ -58,8 +110,8 @@ window.TXD_DATA = {
     company: 'Freelance',
     bio: 'Construyo interfaces rápidas y accesibles. Siempre en la fila del café.',
     photo: null,
-    joined: 2024 // año en que se sumó a la comunidad
+    joined: 2024
   },
 
   myEvents: ['hackspain-26', 't3chfest-26', 'bilbostack-26', 'codemotion-25', 'devfest-mad-25', 'commit-26', 'codemotion-26']
-};
+}

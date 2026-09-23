@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "space grotesk",
+        "createdAt": "2026-09-23T13:35:22.351Z",
+        "reason": "incumbent font of the original prototype; the user asked to keep the UI during the React migration; recorded in DESIGN.md"
+      }
+    ]
+  }
+}
