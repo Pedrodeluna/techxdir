@@ -8,3 +8,4 @@ dist
 supabase/.temp
 supabase/.branches
 .impeccable/config.local.json
+.impeccable/review/

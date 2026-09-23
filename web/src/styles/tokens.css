@@ -3,6 +3,7 @@
   --card: #fbfbf9;
   --ink: #111113;
   --muted: #8b8a90;
+  --muted-text: #636268; /* texto secundario legible: 5:1 sobre --bg */
   --line: rgba(17, 17, 19, .1);
   --soft: rgba(17, 17, 19, .045);
   --accent: #ff4d00;

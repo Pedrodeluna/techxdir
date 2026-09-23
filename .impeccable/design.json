@@ -78,6 +78,21 @@
           "#c8c7cb",
           "#e6e6e8"
         ]
+      },
+      "graphite": {
+        "role": "neutral",
+        "displayName": "Graphite",
+        "canonical": "#636268",
+        "tonalRamp": [
+          "#1c1c1e",
+          "#2e2e31",
+          "#434246",
+          "#57565b",
+          "#636268",
+          "#8a898e",
+          "#b3b2b6",
+          "#dcdcde"
+        ]
       }
     },
     "typographyMeta": {
@@ -230,7 +245,9 @@
       "Do set labels, dates, handles and IDs in JetBrains Mono uppercase with .15em tracking.",
       "Do use full pills for everything pressable and underlines for everything typed.",
       "Do keep Signal Orange to one small signal per view.",
-      "Do keep copy short and in Spanish."
+      "Do keep copy short and in Spanish.",
+      "Do use Graphite, not Pencil Grey, for any secondary sentence a person must read.",
+      "Do label sample data (people, dates) as an example wherever a visitor could take it as real."
     ],
     "donts": [
       "Don't use gradients, icon feature grids, logo walls, or testimonials.",

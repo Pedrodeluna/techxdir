@@ -7,6 +7,7 @@ colors:
   badge-paper: "#fbfbf9"
   press-ink: "#111113"
   pencil-grey: "#8b8a90"
+  graphite: "#636268"
   hairline: "rgba(17, 17, 19, .1)"
   soft-press: "rgba(17, 17, 19, .045)"
 typography:
@@ -110,7 +111,8 @@ Warm neutrals with one hot signal.
 - **Hall Floor** (`hall-floor`): the page background and the lanyard slot. The "room" the badge hangs in.
 - **Badge Paper** (`badge-paper`): the card face, the mobile panel sheet, text on ink buttons.
 - **Press Ink** (`press-ink`): all primary text, primary buttons, toggled pills, the toast.
-- **Pencil Grey** (`pencil-grey`): labels, secondary text, counts, the "dir" in the wordmark.
+- **Pencil Grey** (`pencil-grey`): labels, counts, the "dir" in the wordmark on the badge. Below 4.5:1 on Hall Floor, so never use it for sentences.
+- **Graphite** (`graphite`, CSS `--muted-text`): readable secondary text on the landing and sign-in pages: sub-lines, past rows, fine print, placeholders (about 5:1 on Hall Floor).
 - **Hairline** (`hairline`): dividers, input underlines, the card edge ring.
 - **Soft Press** (`soft-press`): hover and active wash on badge zones.
 
@@ -199,6 +201,8 @@ The badge is the navigation. Tapping a zone runs a ripple, a full 360° rotateY 
 - **Do** use full pills for everything pressable and underlines for everything typed.
 - **Do** keep Signal Orange to one small signal per view.
 - **Do** keep copy short and in Spanish.
+- **Do** use Graphite, not Pencil Grey, for any secondary sentence a person must read.
+- **Do** label sample data (people, dates) as an example wherever a visitor could take it as real.
 
 ### Don't:
 - **Don't** use gradients, icon feature grids, logo walls, or testimonials.
