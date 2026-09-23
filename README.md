@@ -162,12 +162,20 @@ Run these from the repository root.
 
 | Table | Content | Row level security |
 |---|---|---|
-| `orgs` | Organizations that run events | Public read |
-| `events` | Events, with dates, city, URL and kind | Public read |
-| `profiles` | One row per user, created by a trigger on the first sign-in | Public read. Each user updates only their own row. |
-| `attendances` | Which profile went to which event | Signed-in read. Each user adds or removes only their own rows. |
+| `orgs` | Organizations that run events | Public read. Managers edit their organization. |
+| `org_managers` | Who manages each organization | Public read. Managers add and remove managers; an organization always keeps one. |
+| `events` | Events, with dates, city, URL and kind | Public read. Managers create, edit and delete their organization's events. Organizers edit their event. |
+| `profiles` | One row per user, created by a trigger on the first sign-in | Public read. Each user updates only their own row. The X handle cannot change once set. |
+| `attendances` | Which profile went to which event, as `attendee` or `organizer` | Signed-in read. Each user adds or removes only their own rows, as `attendee`. Managers choose the organizers of their events. |
 
 The app derives contacts from shared attendance. There is no follow table.
+
+Admins create organizations and name their first manager from the SQL editor:
+
+```sql
+insert into public.org_managers (org_id, profile_id)
+select 'hackspain', id from public.profiles where lower(handle) = 'someone';
+```
 
 ### `profile` edge function
 
@@ -176,7 +184,7 @@ The function runs as the caller (it forwards their JWT), so row level security a
 | Method | Body | Result |
 |---|---|---|
 | `GET` | None | The caller's profile |
-| `PATCH` | Any of `name`, `handle`, `role`, `company`, `bio`, `photo_url` | The updated profile. `400` for invalid input, `409` if the handle is taken. |
+| `PATCH` | Any of `name`, `handle`, `role`, `company`, `bio`, `photo_url` | The updated profile. `400` for invalid input, `409` if the handle is taken, `403` if the handle was already set. |
 
 ```sh
 curl http://127.0.0.1:55321/functions/v1/profile \
