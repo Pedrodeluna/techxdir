@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEv
 import type { Me } from '../../data/sample'
 import { BadgeBack, BadgeFront } from './BadgeFront'
 import { focusQuiet, replay } from './dom'
-import { EV, LEAN, MOVE_MS, SIDE, contacts, peopleOf, myEventsSplit, plural, type Section } from './model'
+import { EV, LEAN, MOVE_MS, MOVE_NARROW_MS, SIDE, contacts, peopleOf, myEventsSplit, plural, type Section } from './model'
 import { BioPanel } from './panels/BioPanel'
 import { EventsPanel, type EventsTab } from './panels/EventsPanel'
 import { PeoplePanel, type PeopleTab } from './panels/PeoplePanel'
@@ -14,6 +14,9 @@ import '../../styles/badge.css'
 
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches
 const CAN_HOVER = matchMedia('(hover: hover)').matches
+const NARROW = matchMedia('(max-width: 899px)') // mismo corte que badge.css
+
+const moveMs = () => (NARROW.matches ? MOVE_NARROW_MS : MOVE_MS)
 
 type Side = 'left' | 'right' | null
 
@@ -60,14 +63,21 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
     const from = turn.current
     turn.current += delta
     card.style.transform = `rotateY(${turn.current}deg)`
+    if (delta === 0) return
     card.animate(
       [{ transform: `rotateY(${from}deg)` }, { transform: `rotateY(${turn.current}deg)` }],
-      { duration: MOVE_MS, easing: 'cubic-bezier(.65, 0, .25, 1)' },
+      { duration: moveMs(), easing: 'cubic-bezier(.65, 0, .25, 1)' },
     )
   }
 
   // Vuelta completa en el sentido del desplazamiento; null = volver al centro.
+  // En móvil la tarjeta no gira ni se inclina: solo vuelve a quedar plana.
   const goTo = (side: Side) => {
+    if (NARROW.matches) {
+      spin(-lean.current)
+      lean.current = 0
+      return
+    }
     const target = side === 'left' ? LEAN : side === 'right' ? -LEAN : 0
     const dir = side === 'left' ? 1 : side === 'right' ? -1 : (lean.current > 0 ? -1 : 1)
     spin(dir * 360 + target - lean.current)
@@ -75,7 +85,7 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
   }
 
   const nudge = () => {
-    if (REDUCED) return
+    if (REDUCED || NARROW.matches) return
     tiltRef.current?.animate(
       [{ rotate: 'y 0deg' }, { rotate: 'y -9deg' }, { rotate: 'y 0deg' }],
       { duration: 550, easing: 'cubic-bezier(.3,0,.2,1)' },
@@ -148,7 +158,7 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
     setTimeout(() => {
       busy.current = false
       focusQuiet(frontRef.current?.querySelector(`[data-open="${was}"]`))
-    }, MOVE_MS)
+    }, moveMs())
   }
 
   const open = (section: Section, zone: HTMLElement, ev: MouseEvent) => {
@@ -159,12 +169,14 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
     const side = SIDE[section]
 
     if (current) {
-      const sameSide = SIDE[current] === side
+      // en móvil el panel siempre está abajo: no hay cambio de lado
+      const sameSide = NARROW.matches || SIDE[current] === side
       if (current === 'bio') setDraftMe(null) // descarta la vista previa sin guardar
       setCurrent(section)
 
       // mismo lado: solo cambia el panel
       if (sameSide) {
+        setStage(s => ({ ...s, cardRight: side === 'right', panelLeft: side === 'right' }))
         renderPanel(section, 'switch')
         nudge()
         return
@@ -181,7 +193,7 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
       setTimeout(() => {
         busy.current = false
         focusClose()
-      }, MOVE_MS)
+      }, moveMs())
       return
     }
 
@@ -194,7 +206,7 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
     setTimeout(() => {
       busy.current = false
       focusClose()
-    }, MOVE_MS)
+    }, moveMs())
   }
 
   // los manejadores globales leen siempre la última versión de close()

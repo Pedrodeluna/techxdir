@@ -32,6 +32,7 @@ const TODAY = new Date()
 TODAY.setHours(0, 0, 0, 0)
 
 export const MOVE_MS = 1200 // el giro se hace siempre, también con "reducir movimiento"
+export const MOVE_NARROW_MS = 450 // en móvil no hay giro: la tarjeta solo sube, como una hoja
 export const LEAN = 12 // al llegar, la tarjeta queda un poco girada hacia el panel
 // lado al que se desplaza la tarjeta según la zona pulsada
 export const SIDE: Record<Section, 'left' | 'right'> = { bio: 'right', events: 'left', people: 'left' }
