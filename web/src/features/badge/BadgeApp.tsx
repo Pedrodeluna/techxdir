@@ -171,11 +171,14 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
     if (current) {
       // en móvil el panel siempre está abajo: no hay cambio de lado
       const sameSide = NARROW.matches || SIDE[current] === side
-      if (current === 'bio') setDraftMe(null) // descarta la vista previa sin guardar
-      setCurrent(section)
+      const switchZone = () => {
+        if (current === 'bio') setDraftMe(null) // descarta la vista previa sin guardar
+        setCurrent(section)
+      }
 
       // mismo lado: solo cambia el panel
       if (sameSide) {
+        switchZone()
         setStage(s => ({ ...s, cardRight: side === 'right', panelLeft: side === 'right' }))
         renderPanel(section, 'switch')
         nudge()
@@ -190,6 +193,8 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
         renderPanel(section, 'initial')
         setStage(s => ({ ...s, panelLeft: side === 'right', swapping: false }))
       }, 250)
+      // la zona activa cambia a mitad del giro, con el anverso de espaldas
+      setTimeout(switchZone, moveMs() / 2)
       setTimeout(() => {
         busy.current = false
         focusClose()
