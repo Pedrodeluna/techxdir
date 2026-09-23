@@ -41,6 +41,8 @@ export interface Me {
   photo: string | null
   /** año en que se sumó a la comunidad */
   joined?: number
+  /** orden en que se unió: el primero es el 1 */
+  memberNo?: number
 }
 
 export interface SampleData {
@@ -110,7 +112,8 @@ export const SAMPLE: SampleData = {
     company: 'Freelance',
     bio: 'Construyo interfaces rápidas y accesibles. Siempre en la fila del café.',
     photo: null,
-    joined: 2024
+    joined: 2024,
+    memberNo: 42
   },
 
   myEvents: ['hackspain-26', 't3chfest-26', 'bilbostack-26', 'codemotion-25', 'devfest-mad-25', 'commit-26', 'codemotion-26']

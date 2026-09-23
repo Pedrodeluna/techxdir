@@ -1,5 +1,5 @@
 import type { Org } from '../../../data/sample'
-import { contacts, peopleOf, fmtDate, hash, initials, joinedYear, myEventsSplit, myOrgs, plural, type BadgeState } from '../model'
+import { contacts, peopleOf, fmtDate, hash, initials, joinedYear, myEventsSplit, myOrgs, plural, tierLabel, type BadgeState } from '../model'
 
 /* Imagen para compartir en redes. Canvas puro: no depende del DOM de la acreditación. */
 
@@ -91,7 +91,7 @@ export async function renderCardImage(state: BadgeState): Promise<Blob> {
   text('techx', P, 76, `600 30px ${SANS}`, INK)
   const tw = g.measureText('techx').width
   text('dir', P + tw, 76, `600 30px ${SANS}`, MUTED)
-  text('ATTENDEE', cw - P, 74, `500 17px ${MONO}`, MUTED, 'right', 2.5)
+  text(tierLabel(me).toUpperCase(), cw - P, 74, `500 17px ${MONO}`, MUTED, 'right', 2.5)
 
   // foto
   const px = P

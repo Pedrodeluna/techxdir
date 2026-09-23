@@ -10,7 +10,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders, json } from '../_shared/cors.ts'
 import { validate } from './validate.ts'
 
-const COLUMNS = 'id, name, handle, role, company, bio, photo_url, joined'
+const COLUMNS = 'id, name, handle, role, company, bio, photo_url, joined, member_no'
 
 Deno.serve(async req => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })

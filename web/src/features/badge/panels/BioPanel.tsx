@@ -34,6 +34,7 @@ export function BioPanel({ me, onDraft, onSave, onCancel }: Props) {
     bio: f.bio.trim(),
     photo: p,
     joined: joinedYear(me),
+    memberNo: me.memberNo,
   })
 
   const set = (key: keyof Fields, value: string) => {
