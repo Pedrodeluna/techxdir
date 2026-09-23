@@ -1,6 +1,7 @@
 import { Fragment, useLayoutEffect, useRef, useState, type CSSProperties, type MutableRefObject, type RefObject } from 'react'
 import type { TechEvent } from '../../../data/sample'
 import { Avatar, OrgLogo } from '../bits'
+import { xProfilePhoto } from '../lib/xProfilePhoto'
 import { at, focusQuiet, replay } from '../dom'
 import { downloadIcs } from '../lib/download'
 import {
@@ -332,7 +333,7 @@ function EventView({ id, state, backLabel, onBack, onOrg, onToggle }: EventViewP
       <ul className="att-list" style={at(5)}>
         {on && (
           <li className="att att-you">
-            {me.photo ? <span className="av av-photo"><img src={me.photo} alt="" /></span> : <Avatar name={me.name} />}
+            {me.photo ? <span className="av av-photo"><img src={xProfilePhoto(me.photo)} alt="" /></span> : <Avatar name={me.name} />}
             <span className="p-info"><strong>Tú</strong><span><span className="p-handle">@{me.handle}</span></span></span>
           </li>
         )}

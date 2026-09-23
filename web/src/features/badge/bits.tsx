@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactElement } from 'react'
 import type { Org, OrgShape } from '../../data/sample'
 import { avatarLightness, initials } from './model'
+import { xProfilePhoto } from './lib/xProfilePhoto'
 
 /* Piezas pequeñas que se repiten en la acreditación y en el panel */
 
@@ -14,7 +15,7 @@ export function Avatar({ name }: { name: string }) {
 
 export function Photo({ photo, name }: { photo: string | null; name: string }) {
   return photo
-    ? <img src={photo} alt={`Foto de ${name}`} />
+    ? <img src={xProfilePhoto(photo)} alt={`Foto de ${name}`} />
     : <span className="initials" aria-hidden="true">{initials(name)}</span>
 }
 
