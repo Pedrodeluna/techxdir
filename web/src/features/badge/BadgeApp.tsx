@@ -10,6 +10,7 @@ import { ShareMenu } from './ShareMenu'
 import { useNotify } from './Toast'
 import { useBadgeStore } from './useBadgeStore'
 import { useAuth } from '../../lib/auth-context'
+import { Link } from 'react-router-dom'
 import '../../styles/badge.css'
 
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -311,6 +312,7 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
       <ShareMenu open={shareOpen} state={state} anchorRef={shareBtnRef} onClose={closeShare} />
 
       <footer className="credits">
+        {!sample && session && <><Link to="/organizaciones">Organizaciones</Link><span aria-hidden="true"> · </span></>}
         A side project by{' '}
         <a href="https://x.com/pedrodelunah" target="_blank" rel="noopener noreferrer">@pedrodelunah</a>,{' '}
         <a href="https://x.com/franms_dev" target="_blank" rel="noopener noreferrer">@franms_dev</a>

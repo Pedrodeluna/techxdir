@@ -2,6 +2,7 @@ node_modules
 dist
 .DS_Store
 *.log
+# Local Supabase secrets and Vite overrides. Commit only the examples.
 .env
 .env.*
 !.env.example
