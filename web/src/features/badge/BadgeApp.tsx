@@ -11,6 +11,7 @@ import { useNotify } from './Toast'
 import { useBadgeStore } from './useBadgeStore'
 import { useAuth } from '../../lib/auth-context'
 import { SignOutButton } from '../../lib/SignOutButton'
+import { useIsAdmin } from '../../lib/useIsAdmin'
 import { Link } from 'react-router-dom'
 import '../../styles/badge.css'
 
@@ -33,6 +34,7 @@ type Side = 'left' | 'right' | null
 export function BadgeApp({ sample = false }: { sample?: boolean }) {
   const notify = useNotify()
   const { session } = useAuth()
+  const isAdmin = useIsAdmin()
   const [state, update, ready] = useBadgeStore(sample ? null : session?.user.id ?? null)
   const [current, setCurrent] = useState<Section | null>(null) // sección abierta en el panel
   const [panel, setPanel] = useState<{ section: Section; key: number; mode: 'initial' | 'switch' } | null>(null)
@@ -494,6 +496,7 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
 
       <footer className="credits">
         {!sample && session && <><Link to="/organizaciones">Organizaciones</Link><span aria-hidden="true"> · </span></>}
+        {!sample && isAdmin && <><Link to="/admin">Administración</Link><span aria-hidden="true"> · </span></>}
         A side project by{' '}
         <a href="https://x.com/pedrodelunah" target="_blank" rel="noopener noreferrer">@pedrodelunah</a>,{' '}
         <a href="https://x.com/franms_dev" target="_blank" rel="noopener noreferrer">@franms_dev</a>
