@@ -767,6 +767,10 @@
 }
 .att .av { width: 34px; height: 34px; font-size: 12px; }
 .att-you .av { background: var(--ink); color: var(--card); }
+/* asistente que abre su perfil */
+.att-item .att-open { grid-template-columns: auto 1fr auto; width: 100%; text-align: left; }
+.att-open:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 2px; border-radius: 8px; }
+.att-open:hover .p-chev { translate: 4px 0; color: var(--ink); }
 .av-photo { overflow: hidden; }
 .av-photo img { width: 100%; height: 100%; object-fit: cover; }
 

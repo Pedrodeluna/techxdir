@@ -112,9 +112,17 @@ export function PeoplePanel({ state, bodyRef, tab, setTab }: Props) {
   )
 }
 
-/* Perfil de una persona: sus datos y los eventos a los que ha ido o irá */
+/* Perfil de una persona: sus datos y los eventos a los que ha ido o irá.
+   También se abre desde la lista de asistentes de un evento. */
 
-function PersonView({ id, state, onBack }: { id: string; state: BadgeState; onBack: () => void }) {
+interface PersonViewProps {
+  id: string
+  state: BadgeState
+  backLabel?: string
+  onBack: () => void
+}
+
+export function PersonView({ id, state, backLabel = '← Todas las personas', onBack }: PersonViewProps) {
   const p = PEOPLE.find(x => x.id === id)!
   const mine = new Set(state.myEvents)
   const evs = p.events.map(eid => EV.get(eid)).filter(e => e !== undefined)
@@ -144,7 +152,7 @@ function PersonView({ id, state, onBack }: { id: string; state: BadgeState; onBa
 
   return (
     <div className="stagger person-view" data-id={p.id}>
-      <button className="link back-link" type="button" data-people-back style={at(0)} onClick={onBack}>← Todas las personas</button>
+      <button className="link back-link" type="button" data-people-back data-view-back style={at(0)} onClick={onBack}>{backLabel}</button>
       <div className="pv-head" style={at(1)}>
         <Avatar name={p.name} />
         <div>

@@ -4,15 +4,16 @@ import { Avatar, OrgLogo } from '../bits'
 import { xProfilePhoto } from '../lib/xProfilePhoto'
 import { at, focusQuiet, replay } from '../dom'
 import { downloadIcs } from '../lib/download'
+import { PersonView } from './PeoplePanel'
 import {
-  EV, EVENTS, ORG, peopleOf, byDateAsc, byDateDesc, contacts, contactsAt, fmtDate, fmtRange, isPast,
+  EV, EVENTS, ORG, PEOPLE, peopleOf, byDateAsc, byDateDesc, contacts, contactsAt, fmtDate, fmtRange, isPast,
   myEventsSplit, orgEvents, orgOf, pillLabel, plural, whenLabel, type BadgeState,
 } from '../model'
 
-/* Navegación dentro del panel de eventos: lista → evento ⇄ organización → … */
+/* Navegación dentro del panel de eventos: lista → evento ⇄ organización → … → persona */
 
 export type EventsTab = 'mine' | 'discover'
-type View = { type: 'event' | 'org'; id: string }
+type View = { type: 'event' | 'org' | 'person'; id: string }
 type Mode = 'initial' | 'quiet' | 'tab' | 'enter' | 'back' | 'refresh'
 
 interface Props {
@@ -138,7 +139,8 @@ export function EventsPanel({ state, toggle, bodyRef, tab, setTab, escRef }: Pro
   const backLabel = () => {
     const prev = trail[trail.length - 2]
     if (!prev) return '← Eventos'
-    return `← ${prev.type === 'org' ? ORG.get(prev.id)!.name : EV.get(prev.id)!.name}`
+    const name = { event: EV.get(prev.id)?.name, org: ORG.get(prev.id)?.name, person: PEOPLE.find(p => p.id === prev.id)?.name }[prev.type]
+    return `← ${name}`
   }
 
   const people = contacts(state.myEvents, peopleOf(state))
@@ -155,8 +157,13 @@ export function EventsPanel({ state, toggle, bodyRef, tab, setTab, escRef }: Pro
   if (view?.type === 'event') {
     return (
       <EventView key={render.key} id={view.id} state={state} backLabel={backLabel()}
-        onBack={goBack} onOrg={id => pushView({ type: 'org', id })} onToggle={toggleFromDetail} />
+        onBack={goBack} onOrg={id => pushView({ type: 'org', id })} onPerson={id => pushView({ type: 'person', id })}
+        onToggle={toggleFromDetail} />
     )
+  }
+
+  if (view?.type === 'person') {
+    return <PersonView key={render.key} id={view.id} state={state} backLabel={backLabel()} onBack={goBack} />
   }
 
   if (view?.type === 'org') {
@@ -287,10 +294,11 @@ interface EventViewProps {
   backLabel: string
   onBack: () => void
   onOrg: (id: string) => void
+  onPerson: (id: string) => void
   onToggle: (id: string) => void
 }
 
-function EventView({ id, state, backLabel, onBack, onOrg, onToggle }: EventViewProps) {
+function EventView({ id, state, backLabel, onBack, onOrg, onPerson, onToggle }: EventViewProps) {
   const e = EV.get(id)!
   const past = isPast(e)
   const on = state.myEvents.includes(e.id)
@@ -338,12 +346,15 @@ function EventView({ id, state, backLabel, onBack, onOrg, onToggle }: EventViewP
           </li>
         )}
         {attendees.map(p => (
-          <li className="att" key={p.id}>
-            <Avatar name={p.name} />
-            <span className="p-info">
-              <strong>{p.name}</strong>
-              <span><span className="p-handle">@{p.handle}</span> · {p.role}</span>
-            </span>
+          <li className="att-item" key={p.id}>
+            <button className="att att-open" type="button" data-person={p.id} aria-label={`Ver perfil de ${p.name}`} onClick={() => onPerson(p.id)}>
+              <Avatar name={p.name} />
+              <span className="p-info">
+                <strong>{p.name}</strong>
+                <span><span className="p-handle">@{p.handle}</span> · {p.role}</span>
+              </span>
+              <span className="p-chev" aria-hidden="true">→</span>
+            </button>
           </li>
         ))}
         {!attendees.length && !on && <li className="empty">Nadie de tu red {past ? 'fue' : 'va'} todavía.</li>}
