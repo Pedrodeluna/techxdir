@@ -11,6 +11,12 @@ body {
 body.is-badge { overflow: hidden; }
 
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+.sign-out { display: grid; justify-items: end; gap: 8px; }
+.sign-out button { padding: 10px 16px; border-radius: 99px; box-shadow: inset 0 0 0 1px var(--line); font: 500 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; }
+.sign-out button:hover { box-shadow: inset 0 0 0 1px var(--ink); }
+.sign-out button:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 3px; }
+.sign-out button:disabled { opacity: .5; cursor: wait; }
+.sign-out [role="alert"] { max-width: 220px; font-size: 12px; line-height: 1.35; text-align: right; color: var(--ink); }
 ul { list-style: none; padding: 0; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 

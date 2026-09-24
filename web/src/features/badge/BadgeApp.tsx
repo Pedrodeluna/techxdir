@@ -10,6 +10,7 @@ import { ShareMenu } from './ShareMenu'
 import { useNotify } from './Toast'
 import { useBadgeStore } from './useBadgeStore'
 import { useAuth } from '../../lib/auth-context'
+import { SignOutButton } from '../../lib/SignOutButton'
 import { Link } from 'react-router-dom'
 import '../../styles/badge.css'
 
@@ -217,7 +218,7 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
     const onClick = (ev: globalThis.MouseEvent) => {
       const target = ev.target as Element
       if (!currentRef.current || !target.isConnected) return
-      if (target.closest('.mover, .panel, .toast, .credits, .share')) return
+      if (target.closest('.mover, .panel, .toast, .credits, .share, .sign-out')) return
       closeRef.current()
     }
     // desde una ficha de evento u organización, Esc vuelve un paso atrás
@@ -270,6 +271,7 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
 
   return (
     <main className={stageClass}>
+      {!sample && session && <SignOutButton />}
       <div className="mover">
         <div className="tilt" ref={tiltRef}>
           <div className="card" ref={cardRef}>

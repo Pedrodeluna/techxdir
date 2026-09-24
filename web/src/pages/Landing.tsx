@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '../lib/auth-context'
+import { SignOutButton } from '../lib/SignOutButton'
 import { BadgeBack, BadgeFront } from '../features/badge/BadgeFront'
 import { DEFAULT_ME, DEFAULT_MY_EVENTS, EVENTS, byDateAsc, fmtDate, isPast, orgOf, type Section } from '../features/badge/model'
 import '../styles/badge.css'
@@ -18,6 +20,7 @@ const ZONES: { id: Section; slot: string; title: string; text: string }[] = [
 ]
 
 export function Landing() {
+  const { session } = useAuth()
   const navigate = useNavigate()
   const cardRef = useRef<HTMLDivElement>(null)
   const [lit, setLit] = useState<Section | null>(null)
@@ -53,7 +56,7 @@ export function Landing() {
     <div className="lp">
       <header className="lp-top">
         <Link to="/" className="wordmark lp-mark">techx<b>dir</b></Link>
-        <Link to="/entrar" className="lp-enter">Entrar</Link>
+        {session ? <SignOutButton /> : <Link to="/entrar" className="lp-enter">Entrar</Link>}
       </header>
 
       <main className="lp-main">

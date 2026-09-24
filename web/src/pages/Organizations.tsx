@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/auth-context'
+import { SignOutButton } from '../lib/SignOutButton'
 import { isDemo, supabase } from '../lib/supabase'
 import type { OrgShape } from '../data/sample'
 import './organizations.css'
@@ -195,7 +196,10 @@ export function Organizations() {
     <main className="organizations">
       <header className="org-top">
         <Link to="/acreditacion" className="wordmark">techx<b>dir</b></Link>
-        <Link to="/acreditacion" className="org-back">← Mi acreditación</Link>
+        <nav className="org-top-actions" aria-label="Cuenta">
+          <Link to="/acreditacion" className="org-back">← Mi acreditación</Link>
+          {session && <SignOutButton />}
+        </nav>
       </header>
       <div className="org-layout">
         <div className="org-intro">
