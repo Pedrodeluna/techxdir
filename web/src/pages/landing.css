@@ -14,19 +14,6 @@
   padding: 24px var(--gutter);
 }
 .lp-mark { font-size: 20px; color: var(--ink); text-decoration: none; }
-.lp-enter {
-  font: 500 12px/1 var(--mono);
-  letter-spacing: .15em;
-  text-transform: uppercase;
-  color: var(--ink);
-  text-decoration: none;
-  padding: 10px 16px;
-  border-radius: 99px;
-  box-shadow: inset 0 0 0 1px var(--line);
-  transition: box-shadow .2s, background-color .2s;
-}
-.lp-enter:hover { box-shadow: inset 0 0 0 1px var(--ink); }
-.lp-enter:focus-visible,
 .lp-mark:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 3px; }
 
 .lp-main {
@@ -83,7 +70,7 @@
   --w: min(400px, calc((100dvh - 150px) / 1.5), 36vw);
   --h: calc(var(--w) * 1.5);
   grid-column: 8 / span 5;
-  grid-row: 2 / span 3;
+  grid-row: 2 / span 2;
   align-self: start;
   position: sticky;
   top: 24px;
@@ -158,20 +145,6 @@
 
 .lp-fine { max-width: 60ch; margin-top: 16px; font-size: 13px; color: var(--muted-text); }
 
-/* ───────── Cómo se usa: tres entradas más del programa ───────── */
-
-.lp-zones {
-  grid-column: 1 / span 6;
-  grid-row: 4;
-  padding-bottom: 96px;
-}
-.lp-zones > .label { padding-bottom: 14px; border-bottom: 1.5px solid var(--ink); }
-.lp-howto .lp-date { width: 132px; font: 500 10.5px/1.25 var(--mono); letter-spacing: .15em; text-transform: uppercase; }
-.lp-howto small { max-width: 46ch; font-size: 14px; line-height: 1.45; }
-.lp-howto tr.is-on .lp-date { color: var(--accent); }
-.lp-last td { border-bottom: 0; padding-top: 22px; }
-.lp-last .lp-cta { margin-top: 18px; white-space: nowrap; }
-
 .lp-credits { position: static; padding: 24px var(--gutter) 32px; color: var(--muted-text); }
 
 /* ───────── Pantallas estrechas ───────── */
@@ -180,8 +153,7 @@
   .lp-title,
   .lp-intro,
   .lp-badge,
-  .lp-programme,
-  .lp-zones { grid-column: 1 / -1; grid-row: auto; }
+  .lp-programme { grid-column: 1 / -1; grid-row: auto; }
   .lp-title { white-space: normal; max-width: 12ch; padding-bottom: 20px; }
   .lp-intro { padding-bottom: 40px; }
   .lp-badge {
@@ -190,13 +162,4 @@
     padding: 8px 0 64px;
   }
   .lp-city { display: none; }
-  /* en estrecho cada entrada se apila: la zona encima, el texto debajo */
-  .lp-howto tr,
-  .lp-howto td { display: block; width: auto; }
-  .lp-howto tr { border-bottom: 1px solid var(--line); }
-  .lp-howto td { border: 0; padding: 0 0 0 8px; }
-  .lp-howto .lp-date { padding-top: 16px; padding-bottom: 6px; }
-  .lp-howto .lp-ev { padding-bottom: 16px; }
-  .lp-howto .lp-last { border-bottom: 0; }
-  .lp-last .lp-cta { display: block; text-align: center; }
 }

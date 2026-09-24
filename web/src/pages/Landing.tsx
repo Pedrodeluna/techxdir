@@ -1,31 +1,28 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { BadgeBack, BadgeFront } from '../features/badge/BadgeFront'
-import { DEFAULT_ME, DEFAULT_MY_EVENTS, EVENTS, byDateAsc, fmtDate, isPast, orgOf, type Section } from '../features/badge/model'
+import { DEFAULT_ME, DEFAULT_MY_EVENTS, EVENTS, byDateAsc, fmtDate, isPast, orgOf, plural, type Section } from '../features/badge/model'
 import '../styles/badge.css'
 import './landing.css'
 
 /* Landing: el programa impreso que te dan con la acreditación */
 
 const SAMPLE_STATE = { me: DEFAULT_ME, myEvents: DEFAULT_MY_EVENTS }
-const RECENT_PAST = 3
+// el programa cabe en la primera pantalla: para ver el resto hay que entrar
+const RECENT_PAST = 2
+const NEXT_UP = 4
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches
-
-const ZONES: { id: Section; slot: string; title: string; text: string }[] = [
-  { id: 'bio', slot: 'Foto', title: 'Tu bio', text: 'Cambia nombre, rol y bio. La acreditación se actualiza mientras escribes.' },
-  { id: 'events', slot: 'Eventos', title: 'Dónde has estado', text: 'Marca los eventos a los que fuiste y a los que irás.' },
-  { id: 'people', slot: 'Coincidencias', title: 'Con quién coincidiste', text: 'Las personas aparecen porque estuvisteis en el mismo evento, no porque os sigáis.' },
-]
 
 export function Landing() {
   const navigate = useNavigate()
   const cardRef = useRef<HTMLDivElement>(null)
   const [lit, setLit] = useState<Section | null>(null)
-  const [focusZone, setFocusZone] = useState<Section | null>(null)
   // el programa arranca con los últimos eventos celebrados y sigue con los próximos
   const sorted = [...EVENTS].sort(byDateAsc)
   const upcomingAt = sorted.findIndex(e => !isPast(e))
-  const events = sorted.slice(Math.max(0, (upcomingAt < 0 ? sorted.length : upcomingAt) - RECENT_PAST))
+  const firstShown = upcomingAt < 0 ? sorted.length : upcomingAt
+  const events = sorted.slice(Math.max(0, firstShown - RECENT_PAST), firstShown + NEXT_UP)
+  const more = sorted.length - firstShown - NEXT_UP
   const firstUpcoming = events.findIndex(e => !isPast(e))
   const today = new Date()
   const todayLabel = today.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }).replace('.', '')
@@ -43,17 +40,10 @@ export function Landing() {
     )
   }, [])
 
-  // tocar una zona de la acreditación lleva a su entrada del programa
-  const openZone = (section: Section) => {
-    setFocusZone(section)
-    document.getElementById(`zona-${section}`)?.scrollIntoView({ behavior: REDUCED ? 'auto' : 'smooth', block: 'center' })
-  }
-
   return (
     <div className="lp">
       <header className="lp-top">
         <Link to="/" className="wordmark lp-mark">techx<b>dir</b></Link>
-        <Link to="/entrar" className="lp-enter">Entrar</Link>
       </header>
 
       <main className="lp-main">
@@ -78,7 +68,7 @@ export function Landing() {
                 shareOpen={false}
                 faceRef={null}
                 shareBtnRef={null}
-                onOpen={openZone}
+                onOpen={() => navigate('/ejemplo')}
                 onShare={() => navigate('/entrar')}
               />
               <BadgeBack />
@@ -117,37 +107,10 @@ export function Landing() {
               })}
             </tbody>
           </table>
-          <p className="lp-fine">Los nombres de los eventos son reales. Las fechas son de ejemplo hasta que conectemos el calendario. No hablamos en nombre de los organizadores.</p>
-        </section>
-
-        <section className="lp-zones" aria-labelledby="lp-zones-title">
-          <h2 id="lp-zones-title" className="label">Cómo se usa · toca la acreditación</h2>
-          <table className="lp-table lp-howto">
-            <thead className="sr-only">
-              <tr><th>Zona</th><th>Qué hace</th></tr>
-            </thead>
-            <tbody>
-              {ZONES.map(z => (
-                <tr
-                  key={z.id}
-                  id={`zona-${z.id}`}
-                  className={focusZone === z.id ? 'is-on' : undefined}
-                  onPointerEnter={() => setLit(z.id)}
-                  onPointerLeave={() => setLit(null)}
-                >
-                  <td className="lp-date">{z.slot}</td>
-                  <td className="lp-ev">{z.title}<small>{z.text}</small></td>
-                </tr>
-              ))}
-              <tr className="lp-last">
-                <td className="lp-date">Tú</td>
-                <td className="lp-ev">
-                  Recoge la tuya<small>Con tu cuenta de X o con tu email. Sin contraseñas.</small>
-                  <Link to="/entrar" className="primary lp-cta">Recoge tu acreditación</Link>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <p className="lp-fine">
+            {more > 0 && <>Y {plural(more, 'evento más', 'eventos más')}: recoge tu acreditación para verlos. </>}
+            No hablamos en nombre de los organizadores.
+          </p>
         </section>
       </main>
 
