@@ -11,6 +11,7 @@ export interface Profile {
   bio: string
   photo_url: string | null
   joined: number
+  member_no: number
 }
 
 export type ProfilePatch = Partial<Pick<Profile, 'name' | 'handle' | 'role' | 'company' | 'bio' | 'photo_url'>>
