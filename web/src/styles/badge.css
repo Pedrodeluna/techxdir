@@ -698,8 +698,6 @@
   /* arrastrar la tarjeta con el dedo: el scroll vertical sigue siendo del navegador */
   .front,
   .peek { touch-action: pan-y; }
-  .mover { transition: transform var(--move) var(--ease), translate .35s var(--ease-out); }
-  .mover.dragging { transition: transform var(--move) var(--ease); }
   .peek:focus-visible { outline: 1.5px solid var(--ink); outline-offset: -4px; border-radius: 12px; }
   .credits { transition: opacity .25s; }
   .stage.open .credits { opacity: 0; visibility: hidden; }
