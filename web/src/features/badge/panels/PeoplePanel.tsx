@@ -157,7 +157,7 @@ export function PersonView({ id, state, backLabel = '← Todas las personas', on
         <Avatar name={p.name} />
         <div>
           <strong>{p.name}</strong>
-          <span className="p-handle">@{p.handle}</span>
+          <a className="p-handle pv-x" href={`https://x.com/${p.handle}`} target="_blank" rel="noopener noreferrer" aria-label={`Ver @${p.handle} en X`}>@{p.handle} ↗</a>
           <span>{p.role}</span>
         </div>
       </div>

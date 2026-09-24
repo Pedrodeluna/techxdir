@@ -528,6 +528,9 @@
 .pv-head strong { display: block; font-size: 24px; font-weight: 500; letter-spacing: -.03em; line-height: 1.1; }
 .pv-head div > span { display: block; margin-top: 3px; font-size: 13px; color: var(--muted); }
 .pv-head .p-handle { color: var(--ink); }
+.pv-x { display: block; width: fit-content; margin-top: 3px; font-size: 13px; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line); }
+.pv-x:hover { text-decoration-color: var(--ink); }
+.pv-x:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 2px; }
 
 .pv-bio { margin-top: 16px; font-size: 14.5px; line-height: 1.5; }
 
