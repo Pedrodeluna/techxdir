@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/auth-context'
 import { SignOutButton } from '../lib/SignOutButton'
+import { errorText } from '../lib/dbError'
 import { isDemo, supabase } from '../lib/supabase'
 import type { OrgShape } from '../data/sample'
 import './organizations.css'
@@ -20,16 +21,6 @@ function draftFor(org: Org): OrgDraft {
   }
 }
 
-function errorText(error: unknown): string {
-  const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : ''
-  const message = typeof error === 'object' && error && 'message' in error ? String(error.message) : ''
-  if (code === '23505') return 'Ya existe una organización con ese identificador o ese gestor ya está asignado.'
-  if (code === '23514') return 'La organización debe conservar al menos un gestor.'
-  if (message.includes('manager handle not found')) return 'No existe una persona con ese usuario.'
-  if (code === '42501') return 'No tienes permisos para hacer ese cambio.'
-  return message || 'No se pudo guardar el cambio.'
-}
-
 export function Organizations() {
   const { session } = useAuth()
   const [orgs, setOrgs] = useState<Org[]>([])
@@ -39,13 +30,8 @@ export function Organizations() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
-  const [name, setName] = useState('')
-  const [slug, setSlug] = useState('')
-  const [firstManager, setFirstManager] = useState('')
   const [addHandles, setAddHandles] = useState<Record<string, string>>({})
   const [drafts, setDrafts] = useState<Record<string, OrgDraft>>({})
-  const [deleting, setDeleting] = useState<{ org: Org; eventCount: number } | null>(null)
-  const [deleteConfirmation, setDeleteConfirmation] = useState('')
 
   const reload = useCallback(async () => {
     if (!supabase || !session) return
@@ -94,19 +80,6 @@ export function Organizations() {
     }
   }
 
-  const create = (event: FormEvent) => {
-    event.preventDefault()
-    const client = supabase
-    if (!client) return
-    void change(async () => {
-      const { error: err } = await client.rpc('create_org', {
-        org_id: slug.trim().toLowerCase(), org_name: name.trim(), manager_handle: firstManager.trim(),
-      })
-      if (err) throw err
-      setName(''); setSlug(''); setFirstManager('')
-    }, 'Organización creada con su primer gestor.')
-  }
-
   const addManager = (event: FormEvent, orgId: string) => {
     event.preventDefault()
     const client = supabase
@@ -148,40 +121,6 @@ export function Organizations() {
     }, 'Organización actualizada.')
   }
 
-  const prepareDelete = (org: Org) => {
-    const client = supabase
-    if (!client) return
-    setBusy(true)
-    setError('')
-    setNotice('')
-    void (async () => {
-      try {
-        const { count, error: countError } = await client.from('events').select('id', { count: 'exact', head: true }).eq('org_id', org.id)
-        if (countError) throw countError
-        setDeleting({ org, eventCount: count ?? 0 })
-        setDeleteConfirmation('')
-      } catch (err) {
-        setError(errorText(err))
-      } finally {
-        setBusy(false)
-      }
-    })()
-  }
-
-  const deleteOrg = (event: FormEvent) => {
-    event.preventDefault()
-    const client = supabase
-    const target = deleting
-    if (!client || !target || deleteConfirmation !== target.org.id || !admin) return
-    void change(async () => {
-      const { data, error: deleteError } = await client.from('orgs').delete().eq('id', target.org.id).select('id').single()
-      if (deleteError) throw deleteError
-      if (!data) throw new Error('No se pudo eliminar la organización.')
-      setDeleting(null)
-      setDeleteConfirmation('')
-    }, 'Organización eliminada.')
-  }
-
   const removeManager = (orgId: string, profileId: string) => {
     const client = supabase
     if (!client) return
@@ -211,26 +150,15 @@ export function Organizations() {
         {error && <p className="org-message org-error" role="alert">{error}</p>}
         {notice && <p className="org-message" role="status">{notice}</p>}
         {isDemo && <p className="org-message">Conecta Supabase para ver y gestionar las organizaciones.</p>}
-
-        {admin && (
-          <section className="org-create" aria-labelledby="create-title">
-            <div className="org-section-head"><span>01 / Administración</span><h2 id="create-title">Nueva organización</h2></div>
-            <form onSubmit={create}>
-              <label>Nombre<input required minLength={2} maxLength={100} value={name} onChange={e => setName(e.target.value)} placeholder="Nombre público" /></label>
-              <label>Identificador<input required maxLength={48} pattern="[a-z0-9]+(-[a-z0-9]+)*" value={slug} onChange={e => setSlug(e.target.value.toLowerCase())} placeholder="mi-organizacion" /></label>
-              <label>Primer gestor <small>Debe tener cuenta y usuario en techxdir</small><input required value={firstManager} onChange={e => setFirstManager(e.target.value)} placeholder="@usuario" /></label>
-              <button className="org-primary" disabled={busy}>Crear organización <span aria-hidden="true">↗</span></button>
-            </form>
-          </section>
-        )}
+        {admin && <p className="org-message">Eres administrador. Crea y elimina organizaciones desde <Link to="/admin/organizaciones">Administración</Link>.</p>}
 
         <section className="org-directory" aria-labelledby="directory-title">
-          <div className="org-section-head"><span>{admin ? '02' : '01'} / Directorio</span><h2 id="directory-title">Todas las organizaciones <em>{orgs.length}</em></h2></div>
+          <div className="org-section-head"><span>01 / Directorio</span><h2 id="directory-title">Todas las organizaciones <em>{orgs.length}</em></h2></div>
           {loading && <p className="org-empty">Cargando organizaciones…</p>}
           {!loading && !orgs.length && <p className="org-empty">Aún no hay organizaciones.</p>}
           {orgs.map(org => {
             const people = managers.filter(manager => manager.org_id === org.id)
-            const canEdit = admin || people.some(manager => manager.profile_id === session?.user.id)
+            const canEdit = people.some(manager => manager.profile_id === session?.user.id)
             return (
               <article className="org-row" key={org.id}>
                 <div className="org-row-main"><span className="org-mark">{typeof org.logo === 'string' ? <img src={org.logo} alt="" /> : org.logo?.mark || org.name.slice(0, 2).toUpperCase()}</span><div><h3>{org.name}</h3><span className="org-id">/{org.id}</span></div><span className="org-count">{people.length} {people.length === 1 ? 'gestor' : 'gestores'}</span></div>
@@ -245,22 +173,11 @@ export function Organizations() {
                   </form>
                   <div className="org-manager-list"><span>Gestores</span>{people.map(person => <div key={person.profile_id}><span>{person.handle ? `@${person.handle}` : person.name || 'Sin usuario'}</span><button disabled={busy || people.length < 2} title={people.length < 2 ? 'Debe quedar al menos un gestor' : undefined} onClick={() => removeManager(org.id, person.profile_id)}>Quitar</button></div>)}</div>
                   <form onSubmit={event => addManager(event, org.id)}><label>Añadir gestor<input required value={addHandles[org.id] ?? ''} onChange={event => setAddHandles(previous => ({ ...previous, [org.id]: event.target.value }))} placeholder="@usuario" /></label><button disabled={busy}>Añadir</button></form>
-                  {admin && <button className="org-delete-link" disabled={busy} onClick={() => prepareDelete(org)}>Eliminar organización</button>}
                 </div>}
               </article>
             )
           })}
         </section>
-        {deleting && <div className="org-dialog-backdrop" onClick={() => setDeleting(null)}>
-          <section className="org-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-org-title" onClick={event => event.stopPropagation()}>
-            <h2 id="delete-org-title">Eliminar {deleting.org.name}</h2>
-            <p>Se borrará la organización, sus {deleting.eventCount} {deleting.eventCount === 1 ? 'evento' : 'eventos'}, las asistencias a esos eventos y sus gestores. Esta acción no se puede deshacer.</p>
-            <form onSubmit={deleteOrg}>
-              <label>Escribe <strong>{deleting.org.id}</strong> para confirmar<input autoFocus required autoComplete="off" value={deleteConfirmation} onChange={event => setDeleteConfirmation(event.target.value)} /></label>
-              <div className="org-dialog-actions"><button type="button" onClick={() => setDeleting(null)}>Cancelar</button><button className="org-delete-confirm" disabled={busy || deleteConfirmation !== deleting.org.id}>Eliminar definitivamente</button></div>
-            </form>
-          </section>
-        </div>}
       </div>
     </main>
   )
