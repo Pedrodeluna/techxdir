@@ -53,7 +53,6 @@ export function BadgeFront({ faceRef, state, current, shareOpen, shareBtnRef, on
       <div className="grid">
         <button {...zone('bio', 'zone-photo')} aria-label="Editar foto y bio">
           <Photo photo={me.photo} name={me.name} />
-          <span className="photo-tag">Editar</span>
         </button>
 
         <button {...zone('events', 'zone-events')} aria-label={`Ver mis eventos (${past.length} asistidos)`}>
