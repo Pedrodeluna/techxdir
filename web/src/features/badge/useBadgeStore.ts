@@ -28,7 +28,11 @@ function write(key: string, state: BadgeState) {
   }
 }
 
-const sample = (): BadgeState => read(SAMPLE_KEY) ?? { me: { ...DEFAULT_ME }, myEvents: [...DEFAULT_MY_EVENTS] }
+function sample(): BadgeState {
+  const saved = read(SAMPLE_KEY)
+  // lo guardado antes del número de socio no lo trae
+  return saved ? { ...saved, me: { memberNo: DEFAULT_ME.memberNo, ...saved.me } } : { me: { ...DEFAULT_ME }, myEvents: [...DEFAULT_MY_EVENTS] }
+}
 
 const fromProfile = (p: Profile, photo: string | null): BadgeState['me'] => ({
   name: p.name,
@@ -38,6 +42,7 @@ const fromProfile = (p: Profile, photo: string | null): BadgeState['me'] => ({
   bio: p.bio,
   photo: photo ?? p.photo_url,
   joined: p.joined,
+  memberNo: p.member_no,
 })
 
 /** userId = null → acreditación de ejemplo */

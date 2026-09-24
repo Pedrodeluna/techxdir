@@ -1,6 +1,6 @@
 import type { MouseEvent, Ref } from 'react'
 import { Avatar, OrgLogo, Photo } from './bits'
-import { cardId, contacts, peopleOf, fmtDate, joinedYear, myEventsSplit, myOrgs, type BadgeState, type Section } from './model'
+import { cardId, contacts, peopleOf, fmtDate, joinedYear, myEventsSplit, myOrgs, tierLabel, type BadgeState, type Section } from './model'
 
 /* Anverso: la acreditación es el menú */
 
@@ -47,13 +47,12 @@ export function BadgeFront({ faceRef, state, current, shareOpen, shareBtnRef, on
       <span className="slot" aria-hidden="true" />
       <div className="top">
         <span className="wordmark">techx<b>dir</b></span>
-        <span className="tier">Attendee</span>
+        <span className="tier">{tierLabel(me)}</span>
       </div>
 
       <div className="grid">
         <button {...zone('bio', 'zone-photo')} aria-label="Editar foto y bio">
           <Photo photo={me.photo} name={me.name} />
-          <span className="photo-tag">Editar</span>
         </button>
 
         <button {...zone('events', 'zone-events')} aria-label={`Ver mis eventos (${past.length} asistidos)`}>

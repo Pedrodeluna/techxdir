@@ -57,6 +57,8 @@ export const byDateDesc = (a: TechEvent, b: TechEvent) => b.date.localeCompare(a
 
 // año en que se sumó a la comunidad (los datos guardados antes no lo traen)
 export const joinedYear = (me: Me) => me.joined || DEFAULT_ME.joined || TODAY.getFullYear()
+// "Attendee · 0002"; sin número (datos guardados antes) solo "Attendee"
+export const tierLabel = (me: Me) => (me.memberNo ? `Attendee · ${String(me.memberNo).padStart(4, '0')}` : 'Attendee')
 export const cardId = (me: Me) => `TXD-${String(hash(me.handle) % 10000).padStart(4, '0')}`
 export const avatarLightness = (name: string) => 70 + (hash(name) % 20)
 
