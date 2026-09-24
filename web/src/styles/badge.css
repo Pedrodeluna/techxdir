@@ -8,6 +8,7 @@
   overflow: hidden;
   perspective: 1800px;
 }
+.stage > .sign-out { position: absolute; z-index: 6; top: 24px; right: clamp(16px, 4vw, 56px); }
 
 .mover,
 .panel { grid-area: 1 / 1; }
@@ -904,4 +905,3 @@
 .share-menu [data-share]:hover,
 .share-menu [data-share]:focus-visible { background: var(--soft); outline: none; }
 .share-menu .ext::after { content: '↗'; color: var(--muted); }
-

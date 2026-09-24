@@ -10,6 +10,8 @@ import { ShareMenu } from './ShareMenu'
 import { useNotify } from './Toast'
 import { useBadgeStore } from './useBadgeStore'
 import { useAuth } from '../../lib/auth-context'
+import { SignOutButton } from '../../lib/SignOutButton'
+import { Link } from 'react-router-dom'
 import '../../styles/badge.css'
 
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -395,7 +397,7 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
     const onClick = (ev: globalThis.MouseEvent) => {
       const target = ev.target as Element
       if (!currentRef.current || !target.isConnected) return
-      if (target.closest('.mover, .panel, .toast, .credits, .share')) return
+      if (target.closest('.mover, .panel, .toast, .credits, .share, .sign-out')) return
       closeRef.current()
     }
     // desde una ficha de evento u organización, Esc vuelve un paso atrás
@@ -448,6 +450,7 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
 
   return (
     <main className={stageClass} ref={stageRef}>
+      {!sample && session && <SignOutButton />}
       <div className="mover" ref={moverRef}>
         <div className="tilt" ref={tiltRef}>
           <div className="card" ref={cardRef}>
@@ -490,6 +493,7 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
       <ShareMenu open={shareOpen} state={state} anchorRef={shareBtnRef} onClose={closeShare} />
 
       <footer className="credits">
+        {!sample && session && <><Link to="/organizaciones">Organizaciones</Link><span aria-hidden="true"> · </span></>}
         A side project by{' '}
         <a href="https://x.com/pedrodelunah" target="_blank" rel="noopener noreferrer">@pedrodelunah</a>,{' '}
         <a href="https://x.com/franms_dev" target="_blank" rel="noopener noreferrer">@franms_dev</a>

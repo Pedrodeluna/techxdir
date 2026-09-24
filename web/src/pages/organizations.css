@@ -1,0 +1,71 @@
+.organizations { min-height: 100dvh; padding: 0 clamp(18px, 5vw, 72px) 100px; }
+.org-top { display: flex; align-items: center; justify-content: space-between; padding: 26px 0; border-bottom: 1px solid var(--line); }
+.org-top .wordmark { color: var(--ink); text-decoration: none; font-size: 20px; }
+.org-top-actions { display: flex; align-items: center; gap: clamp(12px, 3vw, 32px); }
+.org-back { color: var(--ink); font: 500 12px var(--mono); text-decoration: none; border-bottom: 1px solid var(--ink); padding-bottom: 5px; }
+.org-layout { max-width: 1120px; margin: auto; }
+.org-intro { padding: clamp(52px, 9vw, 110px) 0 70px; border-bottom: 1px solid var(--ink); }
+.org-kicker, .org-section-head > span, .org-id, .org-count, .org-manager-list > span { font: 500 11px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted-text); }
+.org-intro h1 { font-size: clamp(52px, 9vw, 116px); font-weight: 300; line-height: 1; letter-spacing: -.065em; margin: 20px 0 24px; overflow-wrap: anywhere; }
+.org-dot { color: var(--accent); }
+.org-intro p { max-width: 42ch; font-size: clamp(16px, 2vw, 20px); line-height: 1.45; }
+.org-section-head { display: flex; justify-content: space-between; gap: 20px; align-items: baseline; margin-bottom: 28px; }
+.org-section-head h2 { font-size: clamp(26px, 4vw, 42px); font-weight: 400; letter-spacing: -.04em; }
+.org-section-head em { font: 400 14px var(--mono); font-style: normal; color: var(--muted-text); vertical-align: top; }
+.org-create, .org-directory { padding: 50px 0 20px; }
+.org-create { border-bottom: 1px solid var(--ink); }
+.org-create form { display: grid; grid-template-columns: 1fr 1fr; gap: 22px 36px; align-items: end; }
+.org-create form label:nth-child(3) { grid-column: 1; }
+.org-create label, .org-controls label { display: block; font: 500 11px var(--mono); letter-spacing: .05em; text-transform: uppercase; }
+.org-create label small { display: block; color: var(--muted-text); text-transform: none; letter-spacing: 0; line-height: 1.5; margin-top: 4px; }
+.org-create input, .org-controls input, .org-controls select, .org-dialog input { display: block; width: 100%; border: 0; border-bottom: 1px solid var(--ink); border-radius: 0; background: transparent; padding: 14px 0 10px; color: var(--ink); font: 400 16px 'Space Grotesk', sans-serif; outline: 0; }
+.org-create input:focus-visible, .org-controls input:focus-visible, .org-controls select:focus-visible, .org-dialog input:focus-visible { border-bottom: 2px solid var(--accent); }
+.org-primary { justify-self: start; background: var(--ink); color: var(--card); padding: 13px 20px; border-radius: 99px; font-size: 14px; }
+.org-primary span { margin-left: 18px; }
+.org-primary:hover { background: var(--accent); }
+.org-primary:disabled, .org-controls button:disabled { opacity: .45; cursor: not-allowed; }
+.org-row { border-bottom: 1px solid var(--line); }
+.org-row-main { display: flex; align-items: center; gap: 20px; min-height: 104px; }
+.org-mark { flex: none; display: grid; place-items: center; width: 52px; height: 52px; border: 1px solid var(--ink); border-radius: 12px; font: 600 15px var(--mono); }
+.org-mark img { width: 100%; height: 100%; object-fit: contain; }
+.org-row h3 { font-size: clamp(18px, 2.3vw, 25px); font-weight: 500; letter-spacing: -.03em; }
+.org-id { display: block; margin-top: 5px; text-transform: none; }
+.org-count { margin-left: auto; white-space: nowrap; }
+.org-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 24px 48px; padding: 0 0 32px 72px; }
+.org-controls form { display: flex; gap: 16px; align-items: end; }
+.org-controls form label { flex: 1; }
+.org-controls button { font: 500 12px var(--mono); text-decoration: underline; text-underline-offset: 4px; padding: 10px 0; }
+.org-controls .org-edit-form { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 24px; align-items: end; }
+.org-edit-form h4 { grid-column: 1 / -1; font: 500 12px var(--mono); text-transform: uppercase; letter-spacing: .1em; }
+.org-edit-form .org-image-field { grid-column: 1 / 3; }
+.org-edit-form small { display: block; color: var(--muted-text); font-size: 11px; text-transform: none; letter-spacing: 0; margin-top: 4px; }
+.org-edit-form button { justify-self: start; }
+.org-controls .org-delete-link { justify-self: start; color: #b54020; }
+.org-dialog-backdrop { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 20px; background: rgb(0 0 0 / 60%); }
+.org-dialog { width: min(100%, 520px); padding: clamp(24px, 4vw, 42px); background: var(--card); color: var(--ink); }
+.org-dialog h2 { font-size: clamp(24px, 3vw, 36px); font-weight: 400; }
+.org-dialog p { margin: 18px 0 26px; line-height: 1.5; }
+.org-dialog label { display: block; font: 500 12px var(--mono); }
+.org-dialog-actions { display: flex; justify-content: flex-end; gap: 18px; margin-top: 30px; }
+.org-dialog-actions button { padding: 12px 16px; font: 500 12px var(--mono); }
+.org-delete-confirm { background: #b54020; color: white; }
+.org-delete-confirm:disabled { opacity: .45; cursor: not-allowed; }
+.org-manager-list { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px 20px; flex-wrap: wrap; }
+.org-manager-list div { display: flex; align-items: center; gap: 9px; font-size: 14px; }
+.org-manager-list div + div { border-left: 1px solid var(--line); padding-left: 20px; }
+.org-message { margin-top: 22px; padding: 12px 16px; border-left: 3px solid var(--ink); background: var(--card); }
+.org-error { border-color: var(--accent); }
+.org-empty { padding: 32px 0; color: var(--muted-text); }
+@media (max-width: 720px) {
+  .org-intro { padding-bottom: 48px; }
+  .org-section-head { display: block; }
+  .org-section-head h2 { margin-top: 12px; }
+  .org-create form, .org-controls { display: block; }
+  .org-controls .org-edit-form { display: block; }
+  .org-edit-form > * { margin-bottom: 16px; }
+  .org-create form > *, .org-controls > * { margin-bottom: 20px; }
+  .org-controls { padding-left: 0; }
+  .org-row-main { gap: 12px; }
+  .org-mark { width: 42px; height: 42px; }
+  .org-count { font-size: 10px; }
+}
