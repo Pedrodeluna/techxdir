@@ -681,6 +681,10 @@
     -webkit-tap-highlight-color: transparent;
   }
   .stage.card-right .peek { left: auto; right: 0; }
+
+  /* arrastrar la tarjeta con el dedo: el scroll vertical sigue siendo del navegador */
+  .front,
+  .peek { touch-action: pan-y; }
   .peek:focus-visible { outline: 1.5px solid var(--ink); outline-offset: -4px; border-radius: 12px; }
   .credits { transition: opacity .25s; }
   .stage.open .credits { opacity: 0; visibility: hidden; }
