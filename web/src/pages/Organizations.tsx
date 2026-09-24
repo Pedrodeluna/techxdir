@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/auth-context'
 import { SignOutButton } from '../lib/SignOutButton'
+import { errorText } from '../lib/dbError'
 import { isDemo, supabase } from '../lib/supabase'
 import type { OrgShape } from '../data/sample'
 import './organizations.css'
@@ -18,16 +19,6 @@ function draftFor(org: Org): OrgDraft {
     shape: typeof org.logo === 'string' ? 'circle' : org.logo?.shape ?? 'circle',
     imageUrl: typeof org.logo === 'string' ? org.logo : '',
   }
-}
-
-function errorText(error: unknown): string {
-  const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : ''
-  const message = typeof error === 'object' && error && 'message' in error ? String(error.message) : ''
-  if (code === '23505') return 'Ya existe una organización con ese identificador o ese gestor ya está asignado.'
-  if (code === '23514') return 'La organización debe conservar al menos un gestor.'
-  if (message.includes('manager handle not found')) return 'No existe una persona con ese usuario.'
-  if (code === '42501') return 'No tienes permisos para hacer ese cambio.'
-  return message || 'No se pudo guardar el cambio.'
 }
 
 export function Organizations() {
