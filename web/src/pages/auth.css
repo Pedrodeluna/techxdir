@@ -54,7 +54,6 @@
   text-wrap: balance;
 }
 .au-lede { font-size: 15px; line-height: 1.5; color: var(--ink); }
-.au-email { font-family: var(--mono); font-size: 14px; }
 
 .au-x {
   display: flex;
@@ -75,32 +74,12 @@
 .au-x:focus-visible,
 .au-submit:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 3px; }
 
-.au-or {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font: 500 10.5px/1 var(--mono);
-  letter-spacing: .15em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-.au-or::before,
-.au-or::after { content: ''; flex: 1; height: 1px; background: var(--line); }
-
-/* el email es la acción secundaria: botón de contorno */
 .au-submit {
   align-self: stretch;
   padding: 14px 22px;
   text-align: center;
   text-decoration: none;
 }
-.au-body form .au-submit {
-  background: transparent;
-  color: var(--ink);
-  box-shadow: inset 0 0 0 1px var(--ink);
-}
-.au-body form .au-submit:hover:not(:disabled) { opacity: 1; background: var(--soft); }
-
 .au-x:disabled,
 .au-submit:disabled,
 .au-body .field input:disabled { opacity: .45; cursor: not-allowed; }
@@ -118,9 +97,8 @@
 
 .au-foot { margin-top: auto; display: flex; }
 .au-foot .au-submit { flex: 1; }
-.au-badge-foot { display: flex; justify-content: space-between; padding-top: 14px; border-top: 1px solid var(--line); }
+.au-badge-foot { display: flex; justify-content: flex-end; padding-top: 14px; border-top: 1px solid var(--line); }
 
 ::placeholder { color: var(--muted-text); opacity: 1; }
 
 .au-lede + .field { margin-top: 10px; }
-.au-email { overflow-wrap: anywhere; }

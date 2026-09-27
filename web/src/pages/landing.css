@@ -163,3 +163,25 @@
   }
   .lp-city { display: none; }
 }
+
+@media (max-width: 560px) {
+  .lp-title { font-size: clamp(38px, 10vw, 54px); overflow-wrap: normal; }
+  .lp-intro { padding-bottom: 24px; }
+  .lp-actions { margin-top: 26px; }
+  .lp-badge { padding-bottom: 48px; }
+  .lp-table, .lp-table tbody { display: block; }
+  .lp-table tr:not(.lp-today) {
+    display: grid;
+    grid-template-columns: 72px minmax(0, 1fr);
+    column-gap: 12px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .lp-table tr:not(.lp-today) td { border: 0; padding: 0; }
+  .lp-table tr:not(.lp-today) td:first-child { padding-left: 0; }
+  .lp-date { grid-row: 1 / span 2; width: auto; }
+  .lp-ev { min-width: 0; overflow-wrap: anywhere; }
+  .lp-kind { grid-column: 2; margin-top: 6px; text-align: left; line-height: 1.35; }
+  .lp-today { display: block; }
+  .lp-today td { display: block; }
+}

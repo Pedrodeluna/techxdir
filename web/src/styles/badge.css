@@ -650,8 +650,11 @@
 
 @media (max-width: 899px) {
   :root {
-    --w: min(400px, calc(100vw - 32px), calc((100dvh - 120px) / 1.5));
+    --w: min(400px, calc(100vw - 32px), calc((100dvh - 176px) / 1.5));
   }
+
+  .stage { padding-top: 56px; }
+  .stage.open > .sign-out { visibility: hidden; pointer-events: none; }
 
   /* como en el PC, la tarjeta gira hacia un lado, pero sale casi del todo:
      solo asoma una franja (la .peek) y el panel queda centrado */
