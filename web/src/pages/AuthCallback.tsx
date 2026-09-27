@@ -5,8 +5,7 @@ import { useAuth } from '../lib/auth-context'
 import '../styles/badge.css'
 import './auth.css'
 
-/* Vuelta del enlace mágico o de X. Si falta el usuario de X (entrada por email),
-   se pide aquí antes de entrar en la acreditación. */
+/* Vuelta de X. Si falta el usuario de X, se pide aquí antes de entrar en la acreditación. */
 
 type Step =
   | { kind: 'checking' }
@@ -26,7 +25,7 @@ function callbackFailure(): Extract<Step, { kind: 'failed' }> {
   return {
     kind: 'failed',
     title: 'No hemos podido entrar',
-    message: 'El enlace puede haber caducado o haberse usado ya. Pide uno nuevo o vuelve a entrar con X.',
+    message: 'No hemos podido completar el acceso con X. Vuelve a intentarlo.',
   }
 }
 
@@ -134,7 +133,6 @@ export function AuthCallback() {
           )}
 
           <div className="foot au-badge-foot">
-            <span className="tier">Sin contraseñas</span>
             <span className="tier">{new Date().getFullYear()}</span>
           </div>
         </section>
