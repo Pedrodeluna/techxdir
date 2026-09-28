@@ -2,8 +2,9 @@
 
    Existe para las vistas previas de enlaces. X (y cualquier red o app de mensajería) no ejecuta
    JavaScript, así que no ve las etiquetas que pudiera poner la app: lee las og:/twitter: de este HTML, que
-   apuntan a la imagen que la persona subió al compartir (badges/<id>.png). Quien abre el enlace
-   ve esa imagen y un botón para crear su acreditación.
+   apuntan a /acreditacion/<handle>/imagen.png, la imagen que la persona subió al compartir
+   (badges/<id>.png) servida desde este dominio. Quien abre el enlace ve esa imagen y un botón
+   para crear su acreditación.
 
    Usa las mismas variables que el build (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY). */
 
@@ -23,29 +24,50 @@ export interface Badge {
 export async function GET(request: Request): Promise<Response> {
   const url = new URL(request.url)
   const home = new URL('/', url)
-  // vercel.json lo pasa como ?handle=; si llega la ruta original, se lee de ella
-  const handle = url.searchParams.get('handle') ?? url.pathname.match(/^\/acreditacion\/([^/]+)\/?$/)?.[1] ?? ''
+  // vercel.json lo pasa como ?handle= (y ?image para la imagen); si llega la ruta original, se lee de ella
+  const path = url.pathname.match(/^\/acreditacion\/([^/]+?)(\/imagen\.png)?\/?$/)
+  const handle = url.searchParams.get('handle') ?? path?.[1] ?? ''
+  const wantsImage = url.searchParams.has('image') || Boolean(path?.[2])
   const version = url.searchParams.get('v') ?? ''
   const api = process.env.VITE_SUPABASE_URL?.replace(/\/+$/, '')
   const key = process.env.VITE_SUPABASE_ANON_KEY
-  if (!api || !key || !HANDLE.test(handle)) return Response.redirect(home, 302)
+  const notFound = () => (wantsImage ? new Response('Not found', { status: 404 }) : Response.redirect(home, 302))
+  if (!api || !key || !HANDLE.test(handle)) return notFound()
 
   const badge = await findBadge(api, key, handle).catch(() => null)
-  if (!badge) return Response.redirect(home, 302)
+  if (!badge) return notFound()
 
   const v = VERSION.test(version) ? version : ''
-  const imageUrl = `${api}/storage/v1/object/public/${BUCKET}/${badge.id}.png${v ? `?v=${v}` : ''}`
+  const stored = `${api}/storage/v1/object/public/${BUCKET}/${badge.id}.png${v ? `?v=${v}` : ''}`
+  if (wantsImage) return serveImage(stored, Boolean(v))
+
   // quien no ha compartido aún no tiene imagen: la página sale igual, sin ella
-  const hasImage = await fetch(imageUrl, { method: 'HEAD', signal: AbortSignal.timeout(TIMEOUT_MS) }).then(r => r.ok, () => false)
+  const hasImage = await fetch(stored, { method: 'HEAD', signal: AbortSignal.timeout(TIMEOUT_MS) }).then(r => r.ok, () => false)
+  // la imagen se sirve desde este dominio: Storage la manda con X-Robots-Tag: none, que los
+  // lectores de tarjetas pueden tomar como prohibición de usarla
+  const imageUrl = new URL(`/acreditacion/${badge.handle}/imagen.png`, url)
+  if (v) imageUrl.searchParams.set('v', v)
 
   const pageUrl = new URL(`/acreditacion/${badge.handle}`, url)
   if (v) pageUrl.searchParams.set('v', v)
 
-  return new Response(badgePage({ badge, pageUrl: pageUrl.href, homeUrl: home.href, imageUrl: hasImage ? imageUrl : null }), {
+  return new Response(badgePage({ badge, pageUrl: pageUrl.href, homeUrl: home.href, imageUrl: hasImage ? imageUrl.href : null }), {
     headers: {
       'Content-Type': 'text/html; charset=utf-8',
       // la versión va en el enlace: cada imagen nueva tiene su propia URL
       'Cache-Control': 'public, max-age=0, s-maxage=60, stale-while-revalidate=600',
+    },
+  })
+}
+
+// Copia la imagen de Storage sin sus cabeceras. Con versión, esa URL no cambia nunca de contenido.
+async function serveImage(stored: string, versioned: boolean): Promise<Response> {
+  const res = await fetch(stored, { signal: AbortSignal.timeout(TIMEOUT_MS) }).catch(() => null)
+  if (!res?.ok) return new Response('Not found', { status: 404 })
+  return new Response(await res.arrayBuffer(), {
+    headers: {
+      'Content-Type': 'image/png',
+      'Cache-Control': versioned ? 'public, max-age=31536000, immutable' : 'public, max-age=0, s-maxage=60',
     },
   })
 }

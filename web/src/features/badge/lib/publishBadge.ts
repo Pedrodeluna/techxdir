@@ -5,13 +5,17 @@ import { supabase } from '../../../lib/supabase'
    se sube aquí al compartir. */
 
 const BUCKET = 'badges' // el mismo que web/api/badge.ts y la migración badge_images
+// X guarda lo que leyó de cada enlace durante días, también si lo leyó sin imagen. Súbelo al
+// cambiar cómo se sirve la tarjeta para que todos los enlaces sean nuevos. (Un dígito: la versión es hex.)
+const CARD_REVISION = 2
 
 /** Huella corta de la imagen. Va en el enlace: si la acreditación cambia, cambia el enlace y X vuelve a leer la imagen. */
 export async function imageVersion(blob: Blob): Promise<string> {
   // crypto.subtle solo existe en https o localhost; fuera de ahí, una versión nueva cada vez
   if (!crypto.subtle) return Date.now().toString(16)
   const digest = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer())
-  return [...new Uint8Array(digest).slice(0, 6)].map(b => b.toString(16).padStart(2, '0')).join('')
+  const hex = [...new Uint8Array(digest).slice(0, 6)].map(b => b.toString(16).padStart(2, '0')).join('')
+  return `${hex}${CARD_REVISION}`
 }
 
 export const badgeLink = (handle: string, version: string) =>
