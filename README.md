@@ -204,7 +204,7 @@ X share intents cannot attach an image. X shows one only when the shared link's 
 
 1. The share menu renders a 1200×630 image of the badge and uploads it to the public `badges` storage bucket as `<user id>.png`. Each person can write only their own file.
 2. It shares `/acreditacion/<handle>?v=<hash of the image>`. The hash changes when the badge changes, so X fetches the new image instead of a cached one.
-3. On Vercel, `web/api/badge.ts` serves that URL. It looks up the public profile and returns a small page whose card tags point to the image.
+3. On Vercel, `web/api/badge.ts` serves that URL. It looks up the public profile and returns a small page whose card tags point to `/acreditacion/<handle>/imagen.png`. The same function serves that image from the site's own domain, because Storage sends it with `X-Robots-Tag: none`.
 
 The sample badge has no upload and shares the landing page.
 

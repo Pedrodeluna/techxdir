@@ -4,7 +4,9 @@ import { GET, badgePage, type Badge } from '../api/badge.ts'
 
 const API = 'https://ref.supabase.co'
 const BADGE: Badge = { id: '00000000-0000-4000-8000-000000000001', name: 'Pedro de Luna', handle: 'pedrodelunah', role: 'Fundador', company: 'nódicus' }
-const IMAGE = `${API}/storage/v1/object/public/badges/${BADGE.id}.png`
+const STORED = `${API}/storage/v1/object/public/badges/${BADGE.id}.png`
+const IMAGE = 'https://techxdir.es/acreditacion/pedrodelunah/imagen.png'
+const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47])
 
 const realFetch = globalThis.fetch
 let calls: { url: string; init?: RequestInit }[] = []
@@ -15,7 +17,10 @@ function mockFetch(profiles: Badge[], imageStatus = 200) {
     const url = String(input)
     calls.push({ url, init })
     if (url.startsWith(`${API}/rest/v1/profiles`)) return Response.json(profiles)
-    if (url.startsWith(`${API}/storage/`)) return new Response(null, { status: imageStatus })
+    if (url.startsWith(`${API}/storage/`)) {
+      const body = imageStatus === 200 && init?.method !== 'HEAD' ? PNG : null
+      return new Response(body, { status: imageStatus, headers: { 'Content-Type': 'image/png', 'X-Robots-Tag': 'none' } })
+    }
     throw new Error(`unexpected fetch ${url}`)
   }) as typeof fetch
 }
@@ -30,7 +35,7 @@ afterEach(() => {
 
 const get = (query: string) => GET(new Request(`https://techxdir.es/api/badge?${query}`))
 
-test('serves the X card with the uploaded badge image for that version', async () => {
+test('serves the X card with the badge image for that version, from its own domain', async () => {
   mockFetch([BADGE])
   const res = await get('handle=PedroDeLunah&v=0a1b2c3d4e5f')
   assert.equal(res.status, 200)
@@ -44,7 +49,34 @@ test('serves the X card with the uploaded badge image for that version', async (
   // búsqueda sin distinguir mayúsculas y comprobación de que la imagen existe
   assert.equal(calls[0].url, `${API}/rest/v1/profiles?select=id,name,handle,role,company&handle=ilike.PedroDeLunah&limit=1`)
   assert.deepEqual(calls[0].init?.headers, { apikey: 'anon', Accept: 'application/json' })
+  assert.equal(calls[1].url, `${STORED}?v=0a1b2c3d4e5f`)
   assert.equal(calls[1].init?.method, 'HEAD')
+})
+
+test('serves the stored image without Storage headers', async () => {
+  mockFetch([BADGE])
+  const res = await get('handle=pedrodelunah&image=1&v=0a1b2c3d4e5f')
+  assert.equal(res.status, 200)
+  assert.equal(res.headers.get('content-type'), 'image/png')
+  assert.equal(res.headers.get('x-robots-tag'), null)
+  assert.match(res.headers.get('cache-control')!, /immutable/)
+  assert.deepEqual(new Uint8Array(await res.arrayBuffer()), PNG)
+  assert.equal(calls[1].url, `${STORED}?v=0a1b2c3d4e5f`)
+})
+
+test('reads the image route from the original path', async () => {
+  mockFetch([BADGE])
+  const res = await GET(new Request('https://techxdir.es/acreditacion/pedrodelunah/imagen.png'))
+  assert.equal(res.status, 200)
+  assert.equal(res.headers.get('content-type'), 'image/png')
+  assert.doesNotMatch(res.headers.get('cache-control')!, /immutable/)
+})
+
+test('answers 404 for a missing image or unknown handle', async () => {
+  mockFetch([BADGE], 400)
+  assert.equal((await get('handle=pedrodelunah&image=1')).status, 404)
+  mockFetch([])
+  assert.equal((await get('handle=nobody&image=1')).status, 404)
 })
 
 test('reads the handle from the original path when the rewrite does not pass it', async () => {

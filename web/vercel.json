@@ -1,6 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
+    { "source": "/acreditacion/:handle/imagen.png", "destination": "/api/badge?handle=:handle&image=1" },
     { "source": "/acreditacion/:handle", "destination": "/api/badge?handle=:handle" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
