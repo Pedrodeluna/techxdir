@@ -31,7 +31,7 @@ The badge is not a picture of a profile. It is the navigation. The physical obje
 ## Operating Context
 
 - Used on the phone at or after an event, and on desktop to curate the profile.
-- Sharing: a 1080×1350 PNG of the badge for X, LinkedIn, WhatsApp, or the native share sheet.
+- Sharing: post on X (the link preview shows the badge), copy the link, the native share sheet, or download a 1080×1350 PNG of the badge.
 - Organizations (HackSpain, Commit Conf, T3chFest, and others) run one or more events.
 
 ## Capabilities and Constraints

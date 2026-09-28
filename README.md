@@ -10,7 +10,7 @@ techxdir gives every attendee of tech events in Spain a digital badge, in the sa
 | **Events** (top right) | The events you went to and the events you will go to. Discover other events. |
 | **Contacts** (bottom) | The people you met at the same events, and other people in the community. |
 
-You can also share the badge as a 1080×1350 image on X, LinkedIn or WhatsApp.
+You can also share the badge on X, copy a link to it, or use the native share sheet. Signed-in badges share a link, `/acreditacion/<handle>`, whose preview shows the badge image; you can also download it as a 1080×1350 image.
 
 > Status: early prototype. Sign-in, the profile and event attendance work against Supabase. People and event dates are still sample data, and the app labels them as examples. The photo stays in the browser.
 
@@ -48,6 +48,7 @@ You can also share the badge as a 1080×1350 image on X, LinkedIn or WhatsApp.
 .
 ├── .env.example                Template for local Supabase OAuth secrets
 ├── web/                        React app (npm workspace)
+│   ├── api/badge.ts            Vercel function: public badge page with link-preview tags
 │   ├── src/
 │   │   ├── features/badge/     The badge: front, flip, panels, share image
 │   │   ├── pages/              Landing, sign-in, auth callback
@@ -168,6 +169,7 @@ Run these from the repository root.
 | `npm run supabase:start` | Start the local Supabase stack. |
 | `npm run supabase:functions` | Serve the edge functions with hot reload. |
 | `cd supabase/functions && deno task test` | Run the edge function tests. |
+| `cd web && node --test tests/*.test.ts` | Run the frontend and Vercel function tests. |
 
 ## Routes
 
@@ -178,6 +180,7 @@ Run these from the repository root.
 | `/auth/callback` | Public | Return from X or the magic link. Asks for name and X handle if they are missing. |
 | `/ejemplo` | Public | Sample badge |
 | `/acreditacion` | Signed in | Your badge (open to everyone in demo mode) |
+| `/acreditacion/<handle>` | Public | Shared badge: the badge image and a link to create one. Served by `web/api/badge.ts` on Vercel (not by `npm run dev`) so that X (and any other link preview) can read its `og:` and `twitter:` tags. |
 | `/organizaciones` | Signed in | Organization directory. Admins create and delete organizations; admins and organization managers edit names, logos and managers. |
 
 ## Backend
@@ -194,6 +197,16 @@ Run these from the repository root.
 | `attendances` | Which profile went to which event, as `attendee` or `organizer` | Signed-in read. Each user adds or removes only their own rows, as `attendee`. Managers choose the organizers of their events. |
 
 The app derives contacts from shared attendance. There is no follow table.
+
+### Share images
+
+X share intents cannot attach an image. X shows one only when the shared link's HTML has `og:image` / `twitter:image` tags, and its crawler does not run JavaScript. So when a signed-in person shares their badge:
+
+1. The share menu renders a 1200×630 image of the badge and uploads it to the public `badges` storage bucket as `<user id>.png`. Each person can write only their own file.
+2. It shares `/acreditacion/<handle>?v=<hash of the image>`. The hash changes when the badge changes, so X fetches the new image instead of a cached one.
+3. On Vercel, `web/api/badge.ts` serves that URL. It looks up the public profile and returns a small page whose card tags point to the image.
+
+The sample badge has no upload and shares the landing page.
 
 ### Roles and permissions
 
@@ -250,7 +263,7 @@ curl http://127.0.0.1:55321/functions/v1/profile \
    supabase functions deploy profile
    ```
 3. In the Supabase dashboard, set the production Site URL and add `https://<your-domain>/auth/callback` to the redirect URLs. Configure **Twitter (Deprecated)** and **Allow users without an email** as above. Do not leave the default `http://localhost:3000` Site URL in a production deployment.
-4. Build the frontend with the hosted `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`, and deploy `web/dist` to any static host. Configure the host to serve `index.html` for all routes (single-page app). For the Vercel project whose root directory is `web`, `web/vercel.json` supplies this rewrite so direct visits to `/entrar` and OAuth returns to `/auth/callback` work.
+4. Build the frontend with the hosted `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`, and deploy `web/dist` to any static host. Configure the host to serve `index.html` for all routes (single-page app). For the Vercel project whose root directory is `web`, `web/vercel.json` supplies this rewrite so direct visits to `/entrar` and OAuth returns to `/auth/callback` work. It also sends `/acreditacion/<handle>` to the `web/api/badge.ts` function, which reads `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` at runtime, so define them for the Production (and Preview) environments, not only at build time.
 
 For automatic deployment when a pull request is merged into `main`, connect this repository in Supabase Dashboard → Project Settings → Integrations → GitHub Integration. Set the working directory to `.` and enable **Deploy to production** for `main`. Supabase applies new migrations and deploys Edge Functions declared in `supabase/config.toml`, including `profile`. This does not require a GitHub Actions workflow or repository secrets. **Auth settings in `config.toml` are ignored for production deployments by this integration**; configure the hosted provider, its email option, Site URL, and redirect URLs in the Supabase Dashboard.
 

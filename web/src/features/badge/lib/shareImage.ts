@@ -1,10 +1,41 @@
 import type { Org } from '../../../data/sample'
 import { contacts, peopleOf, fmtDate, hash, initials, joinedYear, myEventsSplit, myOrgs, plural, tierLabel, type BadgeState } from '../model'
+import { xProfilePhoto } from './xProfilePhoto'
 
 /* Imagen para compartir en redes. Canvas puro: no depende del DOM de la acreditación. */
 
+const cssVar = (name: string, fallback: string) =>
+  getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback
+
+const toPng = (canvas: HTMLCanvasElement) =>
+  new Promise<Blob>((resolve, reject) => canvas.toBlob(b => (b ? resolve(b) : reject(new Error('sin imagen'))), 'image/png'))
+
 // Dibuja la acreditación en un PNG 1080×1350 (formato 4:5, el que mejor encaja en redes)
 export async function renderCardImage(state: BadgeState): Promise<Blob> {
+  return toPng(await drawCard(state))
+}
+
+/** La acreditación en 4:5 (para descargar y adjuntar) y en 1200×630 para la vista previa del
+    enlace: X recorta esa imagen a 1,91:1, así que va entera y centrada. */
+export async function renderShareImages(state: BadgeState): Promise<{ card: Blob; link: Blob }> {
+  const card = await drawCard(state)
+  const W = 1200
+  const H = 630
+  const canvas = document.createElement('canvas')
+  canvas.width = W
+  canvas.height = H
+  const g = canvas.getContext('2d')!
+  g.fillStyle = cssVar('--bg', '#ebeae6')
+  g.fillRect(0, 0, W, H)
+  // la tarjeta con su sombra, sin el margen de arriba y abajo
+  const sy = 45
+  const sh = card.height - 2 * sy
+  const s = H / sh
+  g.drawImage(card, 0, sy, card.width, sh, (W - card.width * s) / 2, 0, card.width * s, H)
+  return { card: await toPng(card), link: await toPng(canvas) }
+}
+
+async function drawCard(state: BadgeState): Promise<HTMLCanvasElement> {
   await document.fonts.ready
   const W = 1080
   const H = 1350
@@ -13,8 +44,7 @@ export async function renderCardImage(state: BadgeState): Promise<Blob> {
   canvas.height = H
   const g = canvas.getContext('2d')!
 
-  const css = getComputedStyle(document.documentElement)
-  const v = (name: string, fallback: string) => css.getPropertyValue(name).trim() || fallback
+  const v = cssVar
   const BG = v('--bg', '#ebeae6')
   const CARD = v('--card', '#fbfbf9')
   const INK = v('--ink', '#111113')
@@ -104,13 +134,15 @@ export async function renderCardImage(state: BadgeState): Promise<Blob> {
   g.fillStyle = '#e3e2dd'
   g.fillRect(px, py, pw, ph)
   let drewPhoto = false
-  if (me.photo && me.photo.startsWith('data:')) {
+  // la foto subida (data:) o la de X, que se sirve con CORS; otra sin CORS no carga y quedan las iniciales
+  if (me.photo && (me.photo.startsWith('data:') || me.photo.startsWith('https:'))) {
     try {
       const img = await new Promise<HTMLImageElement>((resolve, reject) => {
         const i = new Image()
+        i.crossOrigin = 'anonymous'
         i.onload = () => resolve(i)
         i.onerror = reject
-        i.src = me.photo!
+        i.src = xProfilePhoto(me.photo!)
       })
       const s = Math.max(pw / img.naturalWidth, ph / img.naturalHeight)
       const iw = img.naturalWidth * s
@@ -201,7 +233,7 @@ export async function renderCardImage(state: BadgeState): Promise<Blob> {
   text(`DESDE ${joinedYear(me)}`, cw - P, 1082, `500 17px ${MONO}`, MUTED, 'right', 2.5)
 
   g.restore()
-  return new Promise<Blob>((resolve, reject) => canvas.toBlob(b => (b ? resolve(b) : reject(new Error('sin imagen'))), 'image/png'))
+  return canvas
 
   // monograma de la organización (las imágenes externas no se dibujan para no bloquear el canvas)
   function drawOrg(o: Org, x: number, y: number, s: number) {
