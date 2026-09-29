@@ -180,7 +180,7 @@ Run these from the repository root.
 | `/auth/callback` | Public | Return from X or the magic link. Asks for name and X handle if they are missing. |
 | `/ejemplo` | Public | Sample badge |
 | `/acreditacion` | Signed in | Your badge (open to everyone in demo mode) |
-| `/acreditacion/<handle>` | Public | Shared badge: the badge image and a link to create one. Served by `web/api/badge.ts` on Vercel (not by `npm run dev`) so that X (and any other link preview) can read its `og:` and `twitter:` tags. |
+| `/acreditacion/<handle>` | Public | Shared badge: the badge image and a link to create one. Served by `web/api/badge.ts` on Vercel and by the same handler through Vite during `npm run dev` so that X (and any other link preview) can read its `og:` and `twitter:` tags. |
 | `/organizaciones` | Signed in | Organization directory. Admins create and delete organizations; admins and organization managers edit names, logos and managers. |
 
 ## Backend
@@ -202,8 +202,8 @@ The app derives contacts from shared attendance. There is no follow table.
 
 X share intents cannot attach an image. X shows one only when the shared link's HTML has `og:image` / `twitter:image` tags, and its crawler does not run JavaScript. So when a signed-in person shares their badge:
 
-1. The share menu renders a 1200×630 image of the badge and uploads it to the public `badges` storage bucket as `<user id>.png`. Each person can write only their own file.
-2. It shares `/acreditacion/<handle>?v=<hash of the image>`. The hash changes when the badge changes, so X fetches the new image instead of a cached one.
+1. The share menu previews the badge. Press **Preparar enlace** to render a 1200×630 image and upload it to the public `badges` storage bucket as `<user id>.png`. Each person can write only their own file.
+2. After the upload succeeds, **Ver tarjeta pública**, **Copiar enlace**, X and native sharing become available. Errors allow retrying; no link is handed out before the upload finishes. It shares `/acreditacion/<handle>?v=<hash of the image>`. The hash changes when the badge changes, so X fetches the new image instead of a cached one.
 3. On Vercel, `web/api/badge.ts` serves that URL. It looks up the public profile and returns a small page whose card tags point to `/acreditacion/<handle>/imagen.png`. The same function serves that image from the site's own domain, because Storage sends it with `X-Robots-Tag: none`.
 
 The sample badge has no upload and shares the landing page.

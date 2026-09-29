@@ -59,7 +59,7 @@ test('serves the stored image without Storage headers', async () => {
   assert.equal(res.status, 200)
   assert.equal(res.headers.get('content-type'), 'image/png')
   assert.equal(res.headers.get('x-robots-tag'), null)
-  assert.match(res.headers.get('cache-control')!, /immutable/)
+  assert.doesNotMatch(res.headers.get('cache-control')!, /immutable/)
   assert.deepEqual(new Uint8Array(await res.arrayBuffer()), PNG)
   assert.equal(calls[1].url, `${STORED}?v=0a1b2c3d4e5f`)
 })
@@ -132,4 +132,11 @@ test('escapes profile text in the page', () => {
 test('uses the handle when the name is empty', () => {
   const html = badgePage({ badge: { ...BADGE, name: '  ' }, pageUrl: 'https://techxdir.es/x', homeUrl: 'https://techxdir.es/', imageUrl: null })
   assert.ok(html.includes('<title>@pedrodelunah · techxdir</title>'))
+})
+
+
+test('the public page offers the published image for viewing and download', () => {
+  const html = badgePage({ badge: BADGE, pageUrl: 'https://techxdir.es/acreditacion/pedrodelunah', homeUrl: 'https://techxdir.es/', imageUrl: IMAGE })
+  assert.ok(html.includes(`href="${IMAGE}" download="techxdir-pedrodelunah.png"`))
+  assert.ok(html.includes('Ver imagen completa'))
 })
