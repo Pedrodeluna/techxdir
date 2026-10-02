@@ -57,7 +57,13 @@ export function ShareMenu({ open, state, anchorRef, onClose }: Props) {
 
   // al abrir: enfoca la primera opción y regenera la imagen con los últimos cambios
   useLayoutEffect(() => {
-    if (!open) return
+    if (!open) {
+      // La siguiente apertura debe enfocar una opción que siga habilitada tras el reset.
+      setReadyUrl(null)
+      setPreview(null)
+      setPreparing(false)
+      return
+    }
     place()
     ;(menuRef.current?.querySelector('[data-share]:not([hidden]):not(:disabled)') as HTMLElement | null)?.focus({ preventScroll: true })
     blob.current = null
