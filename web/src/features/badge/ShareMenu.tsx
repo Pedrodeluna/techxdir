@@ -10,7 +10,7 @@ import { useNotify } from './Toast'
    Con sesión, el enlace es /acreditacion/<handle>: al compartirlo se sube la imagen y
    las redes la muestran en la vista previa. La acreditación de ejemplo comparte la portada. */
 
-type Kind = 'native' | 'x' | 'copy' | 'image'
+type Kind = 'native' | 'x' | 'copy' | 'image' | 'view'
 
 interface Props {
   open: boolean
@@ -34,7 +34,10 @@ export function ShareMenu({ open, state, anchorRef, onClose }: Props) {
   const [preview, setPreview] = useState<string | null>(null)
   const blob = useRef<Blob | null>(null)
   const images = useRef<Promise<Images> | null>(null)
-  const version = useRef<string | null>(null)
+  const [readyUrl, setReadyUrl] = useState<string | null>(null)
+  const [preparing, setPreparing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const generation = useRef(0)
   const published = useRef<Promise<string> | null>(null)
   const uploaded = useRef<string | null>(null) // versión ya subida: no se repite en la siguiente apertura
   const canNative = typeof navigator !== 'undefined' && 'share' in navigator
@@ -54,11 +57,20 @@ export function ShareMenu({ open, state, anchorRef, onClose }: Props) {
 
   // al abrir: enfoca la primera opción y regenera la imagen con los últimos cambios
   useLayoutEffect(() => {
-    if (!open) return
+    if (!open) {
+      // La siguiente apertura debe enfocar una opción que siga habilitada tras el reset.
+      setReadyUrl(null)
+      setPreview(null)
+      setPreparing(false)
+      return
+    }
     place()
-    ;(menuRef.current?.querySelector('[data-share]:not([hidden])') as HTMLElement | null)?.focus({ preventScroll: true })
+    ;(menuRef.current?.querySelector('[data-share]:not([hidden]):not(:disabled)') as HTMLElement | null)?.focus({ preventScroll: true })
     blob.current = null
-    version.current = null
+    generation.current += 1
+    setReadyUrl(null)
+    setPreparing(false)
+    setError(null)
     published.current = null
     setPreview(null)
     let url: string | null = null
@@ -69,13 +81,13 @@ export function ShareMenu({ open, state, anchorRef, onClose }: Props) {
       .then(r => {
         if (!alive) return
         blob.current = r.card
-        version.current = r.version
         url = URL.createObjectURL(r.card)
         setPreview(url)
       })
-      .catch(() => { /* sin vista previa: el resto de opciones sigue funcionando */ })
+      .catch(() => { if (alive) setError('No se ha podido generar la vista previa. Prueba a abrir de nuevo este menú.') })
     return () => {
       alive = false
+      generation.current += 1
       if (url) URL.revokeObjectURL(url)
     }
     // la imagen se genera una vez por apertura
@@ -97,7 +109,8 @@ export function ShareMenu({ open, state, anchorRef, onClose }: Props) {
         return
       }
       if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
-        const items = [...menuRef.current!.querySelectorAll<HTMLElement>('[data-share]:not([hidden])')]
+        const items = [...menuRef.current!.querySelectorAll<HTMLElement>('[data-share]:not([hidden]):not(:disabled)')]
+        if (!items.length) return
         const i = items.indexOf(document.activeElement as HTMLElement)
         items[(i + (ev.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length].focus()
         ev.preventDefault()
@@ -113,56 +126,55 @@ export function ShareMenu({ open, state, anchorRef, onClose }: Props) {
     }
   }, [open, onClose, place])
 
-  // Sube la imagen del enlace (una vez por versión) y devuelve el enlace a compartir.
-  // Sin sesión, o si la subida falla, se comparte la portada.
-  function publish(): Promise<string> {
-    if (!canPublish || !images.current) return Promise.resolve(homeUrl())
-    published.current ??= images.current
-      .then(async ({ link, version: v }) => {
+  // Publica únicamente al pulsar Preparar enlace. No se entrega una URL hasta que
+  // Storage confirma la subida; un fallo deja reintentar sin compartir la portada.
+  async function prepare() {
+    if (!canPublish || !images.current || preparing) return
+    const current = generation.current
+    setPreparing(true)
+    setError(null)
+    try {
+      published.current ??= images.current.then(async ({ link, version: v }) => {
         if (uploaded.current !== v) {
           await uploadBadgeImage(userId!, link)
           uploaded.current = v
         }
         return badgeLink(state.me.handle, v)
       })
-      .catch(() => homeUrl())
-    return published.current
-  }
-
-  // Enlace sin esperar a la subida, para lo que tiene que ocurrir en el mismo clic (portapapeles,
-  // hoja de compartir del sistema). La subida sigue en segundo plano; quien lo abra llega después.
-  function linkNow(): string {
-    if (!canPublish || !version.current) return homeUrl()
-    void publish()
-    return badgeLink(state.me.handle, version.current)
-  }
-
-  // La ventana se abre en el clic (si no, el navegador la bloquea) y navega cuando la imagen
-  // ya está subida: X lee la vista previa nada más cargar.
-  async function popup(href: (url: string) => string) {
-    const win = window.open('', '_blank', 'width=620,height=680')
-    if (win) {
-      win.opener = null
-      win.document.title = 'techxdir'
-      win.document.body.textContent = 'Preparando tu acreditación…'
+      const url = await published.current
+      if (current === generation.current) setReadyUrl(url)
+    } catch {
+      if (current === generation.current) {
+        published.current = null
+        setError('No se ha podido preparar el enlace. Vuelve a intentarlo.')
+      }
+    } finally {
+      if (current === generation.current) setPreparing(false)
     }
-    const target = href(await publish())
-    if (win) win.location.href = target
-    else window.open(target, '_blank', 'noopener,noreferrer,width=620,height=680')
   }
+
+  useLayoutEffect(() => { if (open) place() }, [open, readyUrl, preparing, error, place])
+  useEffect(() => {
+    if (open && readyUrl) menuRef.current?.querySelector<HTMLButtonElement>('[data-share="view"]')?.focus({ preventScroll: true })
+  }, [open, readyUrl])
 
   async function share(kind: Kind) {
     const text = shareText(state)
+    const url = canPublish ? readyUrl : homeUrl()
+    if (kind !== 'image' && !url) return
     const enc = encodeURIComponent
 
     switch (kind) {
+      case 'view':
+        window.open(url!, '_blank', 'noopener,noreferrer')
+        break
       case 'x':
-        await popup(url => `https://x.com/intent/post?text=${enc(text)}&url=${enc(url)}`)
+        window.open(`https://x.com/intent/post?text=${enc(text)}&url=${enc(url!)}`, '_blank', 'noopener,noreferrer,width=620,height=680')
         break
       case 'copy':
         try {
-          await navigator.clipboard.writeText(`${text} ${linkNow()}`)
-          notify('Texto y enlace copiados')
+          await navigator.clipboard.writeText(url!)
+          notify('Enlace de la tarjeta copiado')
         } catch {
           notify('No se ha podido copiar')
         }
@@ -172,7 +184,7 @@ export function ShareMenu({ open, state, anchorRef, onClose }: Props) {
         notify('Imagen descargada')
         break
       case 'native': {
-        const data: ShareData = { title: 'Mi acreditación · techxdir', text, url: linkNow() }
+        const data: ShareData = { title: 'Mi acreditación · techxdir', text, url: url! }
         if (blob.current) {
           const file = new File([blob.current], fileName, { type: 'image/png' })
           if (navigator.canShare?.({ files: [file] })) data.files = [file]
@@ -189,17 +201,25 @@ export function ShareMenu({ open, state, anchorRef, onClose }: Props) {
 
   const item = (kind: Kind, label: string, ext = false) => (
     <button type="button" role="menuitem" data-share={kind} className={ext ? 'ext' : undefined}
-      hidden={kind === 'native' && !canNative}
-      onClick={() => { share(kind); onClose(true) }}>{label}</button>
+      disabled={kind !== 'image' && canPublish && !readyUrl}
+      hidden={(kind === 'native' && !canNative) || (kind === 'view' && !canPublish)}
+      onClick={() => { void share(kind).catch(() => notify('No se ha podido compartir. Inténtalo de nuevo.')); onClose(true) }}>{label}</button>
   )
 
   return (
     <div className="share">
       <div className="share-menu" id="shareMenu" role="menu" aria-label="Compartir acreditación" hidden={!open} ref={menuRef}>
         <img className="share-preview" src={preview ?? undefined} alt="Vista previa de la imagen de tu acreditación" onLoad={place} />
+        <p className="share-status" role="status">{error || (canPublish
+          ? readyUrl ? 'Tu tarjeta está lista. Cualquiera con el enlace puede verla.' : 'Publica esta imagen para compartir tu tarjeta con un enlace.'
+          : 'Tarjeta de ejemplo. Puedes descargar la imagen; el enlace lleva a techxdir.')}</p>
+        {canPublish && !readyUrl && <button type="button" role="menuitem" data-share="prepare" disabled={preparing || !preview} onClick={() => void prepare()}>
+          {preparing ? 'Preparando enlace…' : 'Preparar enlace'}
+        </button>}
+        {item('view', 'Ver tarjeta pública', true)}
         {item('native', 'Compartir…')}
         {item('x', 'Publicar en X', true)}
-        {item('copy', 'Copiar texto y enlace')}
+        {item('copy', 'Copiar enlace')}
         {item('image', 'Descargar imagen')}
       </div>
     </div>

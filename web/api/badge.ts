@@ -39,7 +39,7 @@ export async function GET(request: Request): Promise<Response> {
 
   const v = VERSION.test(version) ? version : ''
   const stored = `${api}/storage/v1/object/public/${BUCKET}/${badge.id}.png${v ? `?v=${v}` : ''}`
-  if (wantsImage) return serveImage(stored, Boolean(v))
+  if (wantsImage) return serveImage(stored)
 
   // quien no ha compartido aún no tiene imagen: la página sale igual, sin ella
   const hasImage = await fetch(stored, { method: 'HEAD', signal: AbortSignal.timeout(TIMEOUT_MS) }).then(r => r.ok, () => false)
@@ -60,14 +60,14 @@ export async function GET(request: Request): Promise<Response> {
   })
 }
 
-// Copia la imagen de Storage sin sus cabeceras. Con versión, esa URL no cambia nunca de contenido.
-async function serveImage(stored: string, versioned: boolean): Promise<Response> {
+// El archivo se sustituye al compartir de nuevo: incluso con versión, la caché debe revalidarse.
+async function serveImage(stored: string): Promise<Response> {
   const res = await fetch(stored, { signal: AbortSignal.timeout(TIMEOUT_MS) }).catch(() => null)
   if (!res?.ok) return new Response('Not found', { status: 404 })
   return new Response(await res.arrayBuffer(), {
     headers: {
       'Content-Type': 'image/png',
-      'Cache-Control': versioned ? 'public, max-age=31536000, immutable' : 'public, max-age=0, s-maxage=60',
+      'Cache-Control': 'public, max-age=0, s-maxage=60',
     },
   })
 }
@@ -139,14 +139,17 @@ export function badgePage({ badge, pageUrl, homeUrl, imageUrl }: {
       body { margin: 0; min-height: 100dvh; display: grid; place-items: center; padding: 32px 16px;
         background: var(--bg); color: var(--ink); font-family: 'Space Grotesk', system-ui, sans-serif; }
       main { width: min(720px, 100%); display: grid; gap: 20px; text-align: center; justify-items: center; }
-      img { width: 100%; height: auto; display: block; }
+      img { width: min(440px, 100%); height: auto; aspect-ratio: 6 / 7; object-fit: cover; display: block; }
+      .actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+      .download { display: inline-block; padding: 14px 22px; color: var(--ink); text-underline-offset: 4px; }
+      .note { font-size: 13px; line-height: 1.5; }
       h1 { margin: 0; font-size: clamp(28px, 6vw, 40px); font-weight: 500; letter-spacing: -.02em; }
       p { margin: 0; color: var(--muted-text); }
       .handle { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--ink); text-decoration: none; }
       .handle:hover { text-decoration: underline; }
       .cta { display: inline-block; margin-top: 8px; padding: 14px 22px; border-radius: 999px;
         background: var(--ink); color: var(--card); font-weight: 500; text-decoration: none; }
-      .cta:focus-visible, .handle:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+      .download:focus-visible, .cta:focus-visible, .handle:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
     </style>
   </head>
   <body>
@@ -157,6 +160,7 @@ export function badgePage({ badge, pageUrl, homeUrl, imageUrl }: {
         ${role ? `<p>${esc(role)}</p>` : ''}
         <p><a class="handle" href="https://x.com/${esc(badge.handle)}" rel="noopener">@${esc(badge.handle)}</a></p>
       </div>
+      ${imageUrl ? `<div class="actions"><a class="download" href="${esc(imageUrl)}" download="techxdir-${esc(badge.handle)}.png">Descargar imagen</a><a class="download" href="${esc(imageUrl)}">Ver imagen completa</a></div>` : '<p class="note">Esta persona todavía no ha publicado la imagen de su tarjeta.</p>'}
       <a class="cta" href="${esc(homeUrl)}">Crea tu acreditación en techxdir</a>
     </main>
   </body>
