@@ -1,27 +1,30 @@
+import { EventMap } from '../features/events/EventMap'
+import { useCatalog } from '../features/events/catalog'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/auth-context'
 import { SignOutButton } from '../lib/SignOutButton'
 import { BadgeBack, BadgeFront } from '../features/badge/BadgeFront'
-import { DEFAULT_ME, DEFAULT_MY_EVENTS, EVENTS, byDateAsc, fmtDate, isPast, orgOf, plural, type Section } from '../features/badge/model'
+import { DEFAULT_ME, DEFAULT_MY_EVENTS, byDateAsc, fmtDate, isPast, plural, type Section } from '../features/badge/model'
 import '../styles/badge.css'
 import './landing.css'
 
 /* Landing: el programa impreso que te dan con la acreditación */
 
 const SAMPLE_STATE = { me: DEFAULT_ME, myEvents: DEFAULT_MY_EVENTS }
-// el programa cabe en la primera pantalla: para ver el resto hay que entrar
+// Resumen del catálogo; la agenda completa está en el mapa de abajo.
 const RECENT_PAST = 2
 const NEXT_UP = 4
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches
 
 export function Landing() {
+  const { catalog, loading, error, retry } = useCatalog()
   const { session } = useAuth()
   const navigate = useNavigate()
   const cardRef = useRef<HTMLDivElement>(null)
   const [lit, setLit] = useState<Section | null>(null)
   // el programa arranca con los últimos eventos celebrados y sigue con los próximos
-  const sorted = [...EVENTS].sort(byDateAsc)
+  const sorted = [...catalog.events].sort(byDateAsc)
   const upcomingAt = sorted.findIndex(e => !isPast(e))
   const firstShown = upcomingAt < 0 ? sorted.length : upcomingAt
   const events = sorted.slice(Math.max(0, firstShown - RECENT_PAST), firstShown + NEXT_UP)
@@ -82,7 +85,7 @@ export function Landing() {
         </aside>
 
         <section className="lp-programme" aria-labelledby="lp-prog">
-          <h2 id="lp-prog" className="label">Programa · fechas de ejemplo</h2>
+          <h2 id="lp-prog" className="label">Programa · encuentros tech</h2>
           <table className="lp-table">
             <thead className="sr-only">
               <tr><th>Fecha</th><th>Evento</th><th>Ciudad</th><th>Tipo</th></tr>
@@ -103,7 +106,7 @@ export function Landing() {
                     onPointerLeave={() => setLit(null)}
                   >
                     <td className="lp-date">{d.day} {d.mon}<small>{d.year}</small></td>
-                    <td className="lp-ev">{e.name}<small>{orgOf(e)?.name}</small></td>
+                    <td className="lp-ev">{e.name}<small>{catalog.orgs.find(o => o.id === e.org)?.name}</small></td>
                     <td className="lp-city">{e.city}</td>
                     <td className="lp-kind">{e.kind}</td>
                   </tr>,
@@ -112,10 +115,13 @@ export function Landing() {
             </tbody>
           </table>
           <p className="lp-fine">
-            {more > 0 && <>Y {plural(more, 'evento más', 'eventos más')}: recoge tu acreditación para verlos. </>}
+            {more > 0 && <>Y {plural(more, 'evento más', 'eventos más')} en el mapa. </>}
             No hablamos en nombre de los organizadores.
           </p>
         </section>
+        <div className="lp-atlas">
+          {loading ? <p role="status">Cargando encuentros…</p> : error ? <p role="alert">No se ha podido cargar la agenda. <button className="link" onClick={retry}>Reintentar</button></p> : <EventMap events={catalog.events} />}
+        </div>
       </main>
 
       <footer className="credits lp-credits">

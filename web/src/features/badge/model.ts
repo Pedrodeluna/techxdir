@@ -1,3 +1,4 @@
+import type { Catalog } from '../events/catalog'
 import { SAMPLE, type Me, type Org, type Person, type TechEvent } from '../../data/sample'
 
 /* Datos y cálculos de la acreditación. Sin React: funciones puras sobre el estado. */
@@ -5,7 +6,11 @@ import { SAMPLE, type Me, type Org, type Person, type TechEvent } from '../../da
 export interface BadgeState {
   me: Me
   myEvents: string[]
-  /** true con sesión: aún no hay personas reales y las fechas son de ejemplo */
+  /** Catálogo real con sesión; el ejemplo mantiene sus datos aislados. */
+  catalog?: Catalog
+  catalogLoading?: boolean
+  catalogError?: boolean
+  retryCatalog?: () => void
   live?: boolean
 }
 
@@ -51,7 +56,7 @@ export const initials = (name: string) =>
   (String(name).trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('') || '?').toUpperCase()
 export const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
 const day = (s: string) => new Date(`${s}T00:00:00`)
-export const isPast = (e: TechEvent) => day(e.date) < TODAY
+export const isPast = (e: TechEvent) => day(e.end ?? e.date) < TODAY
 export const byDateAsc = (a: TechEvent, b: TechEvent) => a.date.localeCompare(b.date)
 export const byDateDesc = (a: TechEvent, b: TechEvent) => b.date.localeCompare(a.date)
 
@@ -115,8 +120,9 @@ export function others(myEvents: string[], people: Person[] = PEOPLE): Contact[]
 
 export const contactsAt = (eventId: string, list: Person[]) => list.filter(p => p.events.includes(eventId)).length
 
-export function myEventsSplit(myEvents: string[]) {
-  const evs = myEvents.map(id => EV.get(id)).filter((e): e is TechEvent => Boolean(e))
+export function myEventsSplit(myEvents: string[], catalog?: Catalog) {
+  const index = catalog ? new Map(catalog.events.map(e => [e.id, e])) : EV
+  const evs = myEvents.map(id => index.get(id)).filter((e): e is TechEvent => Boolean(e))
   return {
     past: evs.filter(isPast).sort(byDateDesc),
     upcoming: evs.filter(e => !isPast(e)).sort(byDateAsc),
@@ -127,17 +133,20 @@ export const orgOf = (e: TechEvent | undefined): Org | undefined => (e ? ORG.get
 export const orgEvents = (o: Org) => EVENTS.filter(e => e.org === o.id)
 
 // organizaciones con eventos marcados por ti, de más a menos eventos
-export function myOrgs(myEvents: string[]) {
+export function myOrgs(myEvents: string[], catalog?: Catalog) {
+  const events = catalog ? new Map(catalog.events.map(e => [e.id, e])) : EV
+  const orgs = catalog ? new Map(catalog.orgs.map(o => [o.id, o])) : ORG
   const count = new Map<Org, number>()
   for (const id of myEvents) {
-    const o = orgOf(EV.get(id))
+    const e = events.get(id)
+    const o = e ? orgs.get(e.org) : undefined
     if (o) count.set(o, (count.get(o) || 0) + 1)
   }
   return [...count].sort((a, b) => b[1] - a[1] || a[0].name.localeCompare(b[0].name, 'es')).map(([o]) => o)
 }
 
 export function shareText(state: BadgeState) {
-  const { past, upcoming } = myEventsSplit(state.myEvents)
+  const { past, upcoming } = myEventsSplit(state.myEvents, state.catalog)
   const n = contacts(state.myEvents, peopleOf(state)).length
   let text = `Mi acreditación en techxdir: ${plural(past.length, 'evento tech', 'eventos tech')} y ${plural(n, 'persona', 'personas')} con las que he coincidido.`
   if (upcoming[0]) text += ` Próximo: ${upcoming[0].name}. ¿Coincidimos?`

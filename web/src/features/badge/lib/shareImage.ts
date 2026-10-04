@@ -83,9 +83,9 @@ async function drawCard(state: BadgeState): Promise<HTMLCanvasElement> {
   }
 
   const me = state.me
-  const { past, upcoming } = myEventsSplit(state.myEvents)
+  const { past, upcoming } = myEventsSplit(state.myEvents, state.catalog)
   const people = contacts(state.myEvents, peopleOf(state))
-  const orgs = myOrgs(state.myEvents)
+  const orgs = myOrgs(state.myEvents, state.catalog)
 
   // fondo y tarjeta
   g.fillStyle = BG

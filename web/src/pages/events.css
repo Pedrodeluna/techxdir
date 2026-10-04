@@ -1,0 +1,15 @@
+.events-page {
+  width: min(100%, 1600px);
+  min-height: 100dvh;
+  margin-inline: auto;
+  padding: 24px clamp(16px, 4vw, 64px) 32px;
+}
+.events-top { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.events-top .wordmark { font-size: 22px; }
+.events-top a { color: var(--ink); text-decoration: none; }
+.events-back { padding: 12px 18px; border: 1px solid var(--line); border-radius: 99px; font-size: 13px; }
+.events-back:hover { border-color: var(--ink); }
+.events-top a:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 4px; }
+.events-main { padding-top: clamp(32px, 5vw, 72px); }
+.events-status h1 { font-size: clamp(40px, 6vw, 88px); font-weight: 300; letter-spacing: -.05em; }
+.events-status p { margin-top: 24px; color: var(--muted-text); }

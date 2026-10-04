@@ -5,6 +5,7 @@ import { AuthProvider, RequireAuth } from './lib/auth'
 import { Auth } from './pages/Auth'
 import { AuthCallback } from './pages/AuthCallback'
 import { Landing } from './pages/Landing'
+import { Events } from './pages/Events'
 import { Organizations } from './pages/Organizations'
 import { Admin } from './pages/Admin'
 import { AdminsSection } from './pages/admin/AdminsSection'
@@ -19,6 +20,7 @@ export default function App() {
       <ToastProvider>
         <Routes>
           <Route path="/" element={<Landing />} />
+          <Route path="/eventos" element={<Events />} />
           <Route path="/entrar" element={<Auth />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/ejemplo" element={<BadgeApp sample />} />
