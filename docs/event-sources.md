@@ -9,6 +9,7 @@ Comprobación: 2 de octubre de 2026. Fechas de calendario del lugar del evento; 
 | React Alicante | 24–26 septiembre | Alicante | https://reactalicante.es/ |
 | Grok Bot Madrid Meetup | 29 septiembre | Madrid | https://luma.com/grokbotmadrid1 |
 | Extremadura Digital Day | 3 octubre | Cáceres | https://extremaduradigitalday.com/ |
+| Kernel Panic · Helmcode | 6 octubre | Madrid | https://luma.com/p50cydsf |
 | Software Crafters Barcelona | 16–17 octubre | Barcelona | https://softwarecrafters.barcelona/ |
 | TRGCON / TarugoConf | 22–24 octubre | Madrid | https://www.trgcon.com/ |
 
@@ -18,7 +19,7 @@ Café Cursor Madrid: se encontró https://luma.com/relaxingcup, pero el contenid
 
 ## Datos y reposición local
 
-`supabase/seed.sql` contiene los siete eventos y sus organizaciones. Desde el 4 de octubre es solo de inserción: conserva los IDs y no sobrescribe campos existentes al repetirlo. Las correcciones posteriores se hacen editando el evento. La limpieza local corrige `hackspain-26` únicamente si todos sus campos siguen coincidiendo con el ejemplo anterior, preservando su ID y sus asistencias.
+`supabase/seed.sql` contiene los ocho eventos y sus siete organizaciones. Desde el 4 de octubre es solo de inserción: conserva los IDs y no sobrescribe campos existentes al repetirlo. Las correcciones posteriores se hacen editando el evento. La limpieza local corrige `hackspain-26` únicamente si todos sus campos siguen coincidiendo con el ejemplo anterior, preservando su ID y sus asistencias.
 
 La limpieza es una operación local explícita, fuera de las migraciones de producción:
 
@@ -45,6 +46,10 @@ Para añadir eventos a mano, seleccionar una de las organizaciones existentes o 
 Validación: `python3 scripts/test-catalog-import.py` crea PostgreSQL desechable y comprueba carga inicial, repetición sin cambios, edición posterior, nuevas altas manuales, rechazo de IDs duplicados, reutilización de IDs alternativos y rollback ante ambigüedad. Requiere `initdb`, `pg_ctl` y `psql`; no utiliza credenciales ni bases de Supabase.
 
 También se comprobó en producción, dentro de una transacción revertida, que el rol `authenticated` con un administrador existente puede crear una organización y un evento mediante las mismas operaciones del panel, y editar organizaciones y eventos importados. No quedaron registros de prueba. La API anónima devuelve los siete eventos y siete organizaciones con todos los campos iguales al catálogo verificado; los recuentos de perfiles, asistencias, gestores y administradores se conservan.
+
+## Alta en producción · 5 de octubre de 2026
+
+El 5 de octubre se añadió Kernel Panic en producción mediante `supabase/imports/20261005_kernel_panic.sql`, reutilizando Helmcode. Fecha y sede confirmadas por [el anuncio del organizador Borja Pérez](https://es.linkedin.com/posts/borjaperfra_abrimos-entradas-para-kernel-panic-nuestra-activity-7505192760329682944-x3Pa): 6 de octubre, Auditorio Casa del Lector, Matadero Madrid. Enlace de inscripción: https://luma.com/p50cydsf. La carga no sobrescribe eventos existentes y reconoce el ID, el enlace o la coincidencia de nombre, ciudad y fecha. El catálogo queda con ocho eventos y siete organizaciones.
 
 ## Interfaz
 

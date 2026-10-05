@@ -17,6 +17,7 @@ insert into public.events (id, org_id, name, short, city, starts_on, ends_on, ur
  ('react-alicante-26','react-alicante','React Alicante 2026','React Alicante','Alicante','2026-09-24','2026-09-26','https://reactalicante.es/','Frontend','#ff4d00'),
  ('grok-bot-madrid-20260929','grok-madrid','Grok Bot Madrid Meetup','Grok Madrid','Madrid','2026-09-29',null,'https://luma.com/grokbotmadrid1','Taller','#ff4d00'),
  ('edd-26','edd','Extremadura Digital Day 2026','EDD','Cáceres','2026-10-03',null,'https://extremaduradigitalday.com/','Comunidad','#ff4d00'),
+ ('kernel-panic-madrid-20261006','helmcode','Kernel Panic','Kernel Panic','Madrid','2026-10-06',null,'https://luma.com/p50cydsf','Conferencia','#ff4d00'),
  ('software-crafters-bcn-26','software-crafters-bcn','Software Crafters Barcelona 2026','SCBCN','Barcelona','2026-10-16','2026-10-17','https://softwarecrafters.barcelona/','Conferencia','#ff4d00'),
  ('trgcon-26','trgcon','TRGCON 2026 · TarugoConf','TRGCON','Madrid','2026-10-22','2026-10-24','https://www.trgcon.com/','Conferencia','#ff4d00')
 on conflict (id) do nothing;
