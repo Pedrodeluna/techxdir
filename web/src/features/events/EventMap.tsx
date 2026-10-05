@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type { TechEvent } from '../../data/sample'
 import { fmtRange, isPast } from '../badge/model'
 import { SPAIN_OUTLINE } from './spain-outline'
@@ -11,6 +11,9 @@ export function EventMap({ events, onOpen, expanded = false }: { events: TechEve
   const [period, setPeriod] = useState('all')
   const [view, setView] = useState<'map' | 'list'>('map')
   const [query, setQuery] = useState('')
+  const popupRef = useRef<HTMLDivElement>(null)
+  const listButtonRef = useRef<HTMLButtonElement>(null)
+  const cityTriggerRef = useRef<HTMLElement | SVGElement | null>(null)
   const normalize = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es').trim()
   const search = expanded ? normalize(query) : ''
   const filtered = events.filter(e =>
@@ -22,6 +25,34 @@ export function EventMap({ events, onOpen, expanded = false }: { events: TechEve
   const selectedPoint = selected ? cityPoint(selected) : null
   const shown = filtered.filter(e => !selected || e.city === selected)
   const located = filtered.filter(e => cityPoint(e.city)).length
+  const cityEventsVisible = view === 'map' && Boolean(selected)
+
+  const closeCity = () => {
+    setCity(null)
+    cityTriggerRef.current?.focus({ preventScroll: true })
+  }
+  const selectCity = (name: string, trigger: HTMLElement | SVGElement) => {
+    cityTriggerRef.current = trigger
+    if (selected === name) closeCity()
+    else setCity(name)
+  }
+  const showList = () => {
+    setView('list')
+    listButtonRef.current?.focus({ preventScroll: true })
+  }
+
+  useEffect(() => {
+    if (cityEventsVisible) popupRef.current?.focus({ preventScroll: true })
+  }, [cityEventsVisible, selected])
+
+  const eventRows = shown.map(e => (
+    <article key={e.id} className="atlas-event">
+      <span className="label">{fmtRange(e).text} · {isPast(e) ? 'Celebrado' : 'Próximo'}</span>
+      <h4>{onOpen ? <button type="button" data-event={e.id} onClick={() => onOpen(e.id)}>{e.name} ↗</button> : e.url ? <a href={e.url} target="_blank" rel="noopener noreferrer">{e.name} ↗</a> : e.name}</h4>
+      <p>{e.city} · {e.kind}</p>
+    </article>
+  ))
+
   return (
     <section className={`event-atlas${expanded ? ' event-atlas-expanded' : ''}`} aria-labelledby={`${id}-title`}>
       <header className="event-atlas-head">
@@ -43,16 +74,19 @@ export function EventMap({ events, onOpen, expanded = false }: { events: TechEve
       <div className="atlas-toolbar">
         <div className="atlas-view-switch" role="group" aria-label="Vista de eventos">
           <button type="button" aria-pressed={view === 'map'} aria-controls={`${id}-map`} onClick={() => setView('map')}>Mapa</button>
-          <button type="button" aria-pressed={view === 'list'} aria-controls={`${id}-list`} onClick={() => setView('list')}>Lista</button>
+          <button ref={listButtonRef} type="button" aria-pressed={view === 'list'} aria-controls={`${id}-list`} onClick={showList}>Lista</button>
         </div>
         <span className="label" aria-live="polite">{shown.length} eventos{selected ? ` · ${selected}` : ''}</span>
       </div>
-      <div className="atlas-cities" aria-label="Filtrar por ciudad"><button type="button" className="pill" aria-pressed={!selected} onClick={() => setCity(null)}>Toda España</button>{cities.map(name => <button type="button" className="pill" key={name} aria-pressed={selected === name} onClick={() => setCity(name)}>{name}</button>)}</div>
+      <div className="atlas-cities" aria-label="Filtrar por ciudad"><button type="button" className="pill" aria-pressed={!selected} onClick={() => setCity(null)}>Toda España</button>{cities.map(name => <button type="button" className="pill" key={name} aria-pressed={selected === name} onClick={e => selectCity(name, e.currentTarget)}>{name}</button>)}</div>
       {expanded && !shown.length && view === 'map' && <p className="atlas-empty" role="status">No hay eventos con estos filtros. Prueba otra búsqueda o cambia las fechas.</p>}
       <div className="event-atlas-body">
         <div id={`${id}-map`} className="event-atlas-map" hidden={view !== 'map'}>
           <div className="atlas-caption"><span>ES / ATLAS DE ENCUENTROS</span><span>{String(cities.filter(name => cityPoint(name)).length).padStart(2, '0')} CIUDADES</span></div>
-          <svg viewBox="0 50 760 520" aria-label="Mapa de ciudades con eventos">
+          <div className="atlas-map-stage">
+          <svg viewBox="0 50 760 520" aria-label="Mapa de ciudades con eventos" onClick={e => {
+            if (cityEventsVisible && !(e.target as Element).closest('.atlas-pin')) closeCity()
+          }}>
             <defs>
               <pattern id={`${id}-grid`} width="12" height="12" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r=".85" fill="currentColor" /></pattern>
               <pattern id={`${id}-survey`} width="60" height="60" patternUnits="userSpaceOnUse"><path d="M4 0H0V4M56 60H60V56" fill="none" stroke="currentColor" strokeWidth=".6" /></pattern>
@@ -68,7 +102,6 @@ export function EventMap({ events, onOpen, expanded = false }: { events: TechEve
               <path d={SPAIN_OUTLINE} fill={`url(#${id}-grid)`} opacity=".3" />
               <path d="M65 470H270V574H65Z" fill="none" stroke="currentColor" opacity=".2" strokeDasharray="4 6" />
             </g>
-            <text x="85" y="500" className="atlas-ocean">CANARIAS</text>
             <text x="530" y="420" className="atlas-ocean">MEDITERRÁNEO</text>
             {selectedPoint && <g key={selected} aria-hidden="true" className="atlas-locator">
               <path d={`M35 ${selectedPoint.y - 24}H725M${selectedPoint.x} 80V530`} />
@@ -79,7 +112,7 @@ export function EventMap({ events, onOpen, expanded = false }: { events: TechEve
               const active = selected === name
               const height = 24
               const count = filtered.filter(e => e.city === name).length
-              return <g key={name} className={`atlas-pin${active ? ' is-active' : ''}`} role="button" tabIndex={0} aria-label={`Ver ${count} eventos en ${name}`} aria-pressed={active} onClick={() => setCity(active ? null : name)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setCity(active ? null : name) } }}>
+              return <g key={name} className={`atlas-pin${active ? ' is-active' : ''}`} role="button" tabIndex={0} aria-label={`Ver ${count} eventos en ${name}`} aria-pressed={active} onClick={e => selectCity(name, e.currentTarget)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectCity(name, e.currentTarget) } }}>
                 <title>{name}</title><circle cx={p.x} cy={p.y - height} r="23" fill="transparent" />
                 <path d={`M${p.x} ${p.y}v-${height}`} stroke="currentColor" />
                 <ellipse cx={p.x} cy={p.y} rx="9" ry="3" className="atlas-pin-base" />
@@ -91,14 +124,33 @@ export function EventMap({ events, onOpen, expanded = false }: { events: TechEve
               </g>
             })}
           </svg>
+          {cityEventsVisible && <div
+            ref={popupRef}
+            className={`atlas-city-popup${selectedPoint && selectedPoint.x > 380 ? ' is-left' : ''}`}
+            role="dialog"
+            aria-modal="false"
+            aria-labelledby={`${id}-city-title`}
+            tabIndex={-1}
+            onKeyDown={e => {
+              if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeCity() }
+            }}
+          >
+            <header className="atlas-popup-head">
+              <div><p className="label">{shown.length} {shown.length === 1 ? 'encuentro' : 'encuentros'}</p><h3 id={`${id}-city-title`}>{selected}</h3></div>
+              <button type="button" className="atlas-popup-close" aria-label="Cerrar eventos de la ciudad" onClick={closeCity}>×</button>
+            </header>
+            <div className="atlas-popup-events" aria-live="polite">{eventRows}</div>
+            <footer className="atlas-popup-foot"><button type="button" className="link" onClick={showList}>Ver la lista completa →</button></footer>
+          </div>}
+          </div>
           <div className="atlas-map-selection">
             <span>{selected ?? 'Toda España'}</span>
-            <button type="button" className="link" onClick={() => setView('list')}>Ver {shown.length} eventos →</button>
+            <button type="button" className="link" onClick={showList}>{selected ? 'Ver solo la lista →' : `Ver ${shown.length} eventos →`}</button>
           </div>
         </div>
         <div id={`${id}-list`} className="atlas-agenda" hidden={view !== 'list'}>
           <div className="atlas-event-list" aria-live="polite">
-            {shown.map(e => <article key={e.id} className="atlas-event"><span className="label">{fmtRange(e).text} · {isPast(e) ? 'Celebrado' : 'Próximo'}</span><h4>{onOpen ? <button type="button" data-event={e.id} onClick={() => onOpen(e.id)}>{e.name} ↗</button> : e.url ? <a href={e.url} target="_blank" rel="noopener noreferrer">{e.name} ↗</a> : e.name}</h4><p>{e.city} · {e.kind}</p></article>)}
+            {eventRows}
             {!shown.length && <p className="atlas-empty">No hay eventos con estos filtros. Prueba otra búsqueda o cambia las fechas.</p>}
           </div>
         </div>
