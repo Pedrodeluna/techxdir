@@ -1,3 +1,5 @@
+import { EventMap } from '../../events/EventMap'
+import type { Org } from '../../../data/sample'
 import { Fragment, useLayoutEffect, useRef, useState, type CSSProperties, type MutableRefObject, type RefObject } from 'react'
 import type { TechEvent } from '../../../data/sample'
 import { Avatar, OrgLogo } from '../bits'
@@ -6,8 +8,8 @@ import { at, focusQuiet, replay } from '../dom'
 import { downloadIcs } from '../lib/download'
 import { PersonView } from './PeoplePanel'
 import {
-  EV, EVENTS, ORG, PEOPLE, peopleOf, byDateAsc, byDateDesc, contacts, contactsAt, fmtDate, fmtRange, isPast,
-  myEventsSplit, orgEvents, orgOf, pillLabel, plural, whenLabel, type BadgeState,
+  EV as SAMPLE_EV, EVENTS as SAMPLE_EVENTS, ORG as SAMPLE_ORG, PEOPLE, peopleOf, byDateAsc, byDateDesc, contacts, contactsAt, fmtDate, fmtRange, isPast,
+  myEventsSplit, pillLabel, plural, whenLabel, type BadgeState,
 } from '../model'
 
 /* Navegación dentro del panel de eventos: lista → evento ⇄ organización → … → persona */
@@ -26,6 +28,9 @@ interface Props {
 }
 
 export function EventsPanel({ state, toggle, bodyRef, tab, setTab, escRef }: Props) {
+  const EVENTS = state.catalog?.events ?? SAMPLE_EVENTS
+  const EV = state.catalog ? new Map(EVENTS.map(e => [e.id, e])) : SAMPLE_EV
+  const ORG = state.catalog ? new Map(state.catalog.orgs.map(o => [o.id, o])) : SAMPLE_ORG
   const [trail, setTrail] = useState<View[]>([]) // pila de vistas abiertas
   const [render, setRender] = useState<{ key: number; mode: Mode }>({ key: 0, mode: 'initial' })
   // la lista se pinta con una copia: un evento que quitas sale animado antes de desaparecer
@@ -146,7 +151,7 @@ export function EventsPanel({ state, toggle, bodyRef, tab, setTab, escRef }: Pro
   const people = contacts(state.myEvents, peopleOf(state))
   const mine = new Set(state.myEvents)
   const itemProps = (e: TechEvent, i: number) => ({
-    e, i,
+    e, i, org: ORG.get(e.org),
     on: mine.has(e.id),
     known: contactsAt(e.id, people),
     leaving: leaving?.id === e.id ? leaving.cls : '',
@@ -168,7 +173,7 @@ export function EventsPanel({ state, toggle, bodyRef, tab, setTab, escRef }: Pro
 
   if (view?.type === 'org') {
     const o = ORG.get(view.id)!
-    const evs = orgEvents(o)
+    const evs = EVENTS.filter(e => e.org === o.id)
     const upcoming = evs.filter(e => !isPast(e)).sort(byDateAsc)
     const past = evs.filter(isPast).sort(byDateDesc)
     const went = past.filter(e => mine.has(e.id)).length
@@ -215,7 +220,7 @@ export function EventsPanel({ state, toggle, bodyRef, tab, setTab, escRef }: Pro
   const listSet = new Set(listMine)
   let groups: [string, TechEvent[]][]
   if (tab === 'mine') {
-    const { past, upcoming } = myEventsSplit(listMine)
+    const { past, upcoming } = myEventsSplit(listMine, state.catalog)
     groups = [['Próximos', upcoming], ['Asistidos', past]]
   } else {
     const rest = EVENTS.filter(e => !listSet.has(e.id))
@@ -234,7 +239,7 @@ export function EventsPanel({ state, toggle, bodyRef, tab, setTab, escRef }: Pro
     <>
       <div className="tabs" role="tablist">
         <button className="tab" type="button" role="tab" aria-selected={tab === 'mine'} onClick={() => changeTab('mine')}>Mis eventos<b>{listMine.length}</b></button>
-        <button className="tab" type="button" role="tab" aria-selected={tab === 'discover'} onClick={() => changeTab('discover')}>Descubrir<b>{EVENTS.length - listMine.length}</b></button>
+        <button className="tab" type="button" role="tab" aria-selected={tab === 'discover'} onClick={() => changeTab('discover')}>Descubrir<b>{EVENTS.filter(e => !listSet.has(e.id)).length}</b></button>
       </div>
       <div
         key={render.key}
@@ -242,7 +247,7 @@ export function EventsPanel({ state, toggle, bodyRef, tab, setTab, escRef }: Pro
         role="tabpanel"
         style={mode !== 'initial' ? ({ '--base': '0ms' } as CSSProperties) : undefined}
       >
-        {items.length ? items : (
+        {state.catalogLoading ? <p className="empty" role="status">Cargando eventos…</p> : state.catalogError ? <p className="empty" role="alert">No se han podido cargar los eventos. <button className="link" onClick={state.retryCatalog}>Reintentar</button></p> : tab === 'discover' ? <EventMap events={EVENTS.filter(e => !listSet.has(e.id))} onOpen={id => pushView({ type: 'event', id })} /> : items.length ? items : (
           <p className="empty">{tab === 'mine' ? 'Aún no has marcado ningún evento.' : 'Ya tienes todos los eventos en tu acreditación.'}</p>
         )}
       </div>
@@ -252,6 +257,7 @@ export function EventsPanel({ state, toggle, bodyRef, tab, setTab, escRef }: Pro
 
 interface EvItemProps {
   e: TechEvent
+  org?: Org
   i: number
   on: boolean
   known: number
@@ -260,10 +266,9 @@ interface EvItemProps {
   onToggle: (btn: HTMLElement) => void
 }
 
-function EvItem({ e, i, on, known, leaving, onOpen, onToggle }: EvItemProps) {
+function EvItem({ e, org, i, on, known, leaving, onOpen, onToggle }: EvItemProps) {
   const d = fmtDate(e)
   const past = isPast(e)
-  const org = orgOf(e)
   let meta = `${org ? `${org.name} · ` : ''}${e.city}`
   if (known) {
     meta += on
@@ -299,11 +304,11 @@ interface EventViewProps {
 }
 
 function EventView({ id, state, backLabel, onBack, onOrg, onPerson, onToggle }: EventViewProps) {
-  const e = EV.get(id)!
+  const e = (state.catalog?.events ?? SAMPLE_EVENTS).find(e => e.id === id)!
+  const org = (state.catalog?.orgs ?? [...SAMPLE_ORG.values()]).find(o => o.id === e.org)
   const past = isPast(e)
   const on = state.myEvents.includes(e.id)
   const r = fmtRange(e)
-  const org = orgOf(e)
   const attendees = peopleOf(state).filter(p => p.events.includes(e.id)).sort((a, b) => a.name.localeCompare(b.name, 'es'))
   const total = attendees.length + (on ? 1 : 0)
   const { me } = state

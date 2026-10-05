@@ -399,7 +399,7 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
     const onClick = (ev: globalThis.MouseEvent) => {
       const target = ev.target as Element
       if (!currentRef.current || !target.isConnected) return
-      if (target.closest('.mover, .panel, .toast, .credits, .share, .sign-out')) return
+      if (target.closest('.mover, .panel, .toast, .credits, .share, .sign-out, .map-access')) return
       closeRef.current()
     }
     // desde una ficha de evento u organización, Esc vuelve un paso atrás
@@ -419,7 +419,8 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
   /* ───────── Datos ───────── */
 
   const toggle = (id: string) => {
-    const e = EV.get(id)!
+    const e = state.catalog ? state.catalog.events.find(e => e.id === id) : EV.get(id)
+    if (!e) return false
     const had = state.myEvents.includes(id)
     const ok = update({ ...state, myEvents: had ? state.myEvents.filter(x => x !== id) : [...state.myEvents, id] })
     notify(had ? `${e.name} quitado` : `${e.name} añadido a tu acreditación`)
@@ -438,10 +439,10 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
   }, [])
 
   const people = contacts(state.myEvents, peopleOf(state))
-  const { past, upcoming } = myEventsSplit(state.myEvents)
+  const { past, upcoming } = myEventsSplit(state.myEvents, state.catalog)
   const heads: Record<Section, [string, string]> = {
     bio: ['Tu bio', 'Los cambios se ven al momento en la acreditación.'],
-    events: ['Eventos', `${plural(past.length, 'asistido', 'asistidos')} · ${plural(upcoming.length, 'próximo', 'próximos')}${state.live ? ' · fechas de ejemplo' : ''}`],
+    events: ['Eventos', `${plural(past.length, 'asistido', 'asistidos')} · ${plural(upcoming.length, 'próximo', 'próximos')}${state.live ? '' : ' · ejemplo'}`],
     people: ['Personas', `Has coincidido con ${plural(people.length, 'persona', 'personas')}.`],
   }
 
@@ -453,6 +454,9 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
   return (
     <main className={stageClass} ref={stageRef}>
       {!sample && session && <SignOutButton />}
+      <Link className="map-access" to="/eventos" state={{ from: sample ? '/ejemplo' : '/acreditacion' }}>
+        Mapa y eventos ↗
+      </Link>
       <div className="mover" ref={moverRef}>
         <div className="tilt" ref={tiltRef}>
           <div className="card" ref={cardRef}>

@@ -65,15 +65,14 @@
 .lp-actions .link { font-size: 15px; color: var(--ink); }
 .lp-actions .link:hover { text-decoration-color: var(--ink); }
 
-/* la acreditación cuelga a la derecha y acompaña al programa */
+/* La acreditación ocupa su fila; al bajar al mapa sale con el programa. */
 .lp-badge {
   --w: min(400px, calc((100dvh - 150px) / 1.5), 36vw);
   --h: calc(var(--w) * 1.5);
   grid-column: 8 / span 5;
   grid-row: 2 / span 2;
   align-self: start;
-  position: sticky;
-  top: 24px;
+  position: relative;
   display: grid;
   justify-items: center;
   padding-top: clamp(16px, 3vh, 40px);
