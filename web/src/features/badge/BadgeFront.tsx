@@ -17,7 +17,7 @@ interface Props {
 export function BadgeFront({ faceRef, state, current, shareOpen, shareBtnRef, onOpen, onShare }: Props) {
   const { me } = state
   const { past, upcoming } = myEventsSplit(state.myEvents, state.catalog)
-  const people = contacts(state.myEvents, peopleOf(state))
+  const people = contacts(state.myEvents, peopleOf(state), state.catalog)
   const shown = people.slice(0, 4)
   const orgs = myOrgs(state.myEvents, state.catalog)
   const orgsShown = orgs.slice(0, 4)

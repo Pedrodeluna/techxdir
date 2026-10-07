@@ -1,7 +1,7 @@
 import { Fragment, useLayoutEffect, useRef, useState, type CSSProperties, type RefObject } from 'react'
 import { Avatar } from '../bits'
 import { at, focusQuiet, replay } from '../dom'
-import { EV, PEOPLE, peopleOf, byDateAsc, byDateDesc, contacts, fmtDate, isPast, others, plural, type BadgeState } from '../model'
+import { EV, peopleOf, byDateAsc, byDateDesc, contacts, fmtDate, isPast, others, plural, type BadgeState } from '../model'
 
 export type PeopleTab = 'match' | 'others' // 'match' = con las que coincidiste · 'others' = el resto
 type Mode = 'initial' | 'quiet' | 'tab' | 'enter'
@@ -56,17 +56,18 @@ export function PeoplePanel({ state, bodyRef, tab, setTab }: Props) {
     return <PersonView key={render.key} id={personId} state={state} onBack={backToPeople} />
   }
 
+  const events = state.catalog ? new Map(state.catalog.events.map(e => [e.id, e])) : EV
   const all = peopleOf(state)
-  const matchCount = contacts(state.myEvents, all).length
+  const matchCount = contacts(state.myEvents, all, state.catalog).length
   const isMatch = tab === 'match'
-  const people = isMatch ? contacts(state.myEvents, all) : others(state.myEvents, all)
+  const people = isMatch ? contacts(state.myEvents, all, state.catalog) : others(state.myEvents, all, state.catalog)
   const q = query.trim().toLowerCase().replace(/^@/, '')
   const shown = q
-    ? people.filter(p => [p.name, p.handle, p.role, ...p.events.map(id => EV.get(id)?.name || '')].some(s => s.toLowerCase().includes(q)))
+    ? people.filter(p => [p.name, p.handle, p.role, ...p.events.map(id => events.get(id)?.name || '')].some(s => s.toLowerCase().includes(q)))
     : people
   const empty = people.length
     ? 'Nadie coincide con esa búsqueda.'
-    : (isMatch ? 'Marca eventos para descubrir con quién coincidiste.' : 'Has coincidido con todo el mundo.')
+    : (!all.length ? 'Todavía no hay otras personas registradas.' : isMatch ? 'Aún no tienes eventos en común con otras personas.' : 'Has coincidido con todo el mundo.')
   const { mode } = render
 
   return (
@@ -94,13 +95,15 @@ export function PeoplePanel({ state, bodyRef, tab, setTab }: Props) {
         role="tabpanel"
         style={mode === 'tab' ? ({ '--base': '0ms' } as CSSProperties) : undefined}
       >
-        {shown.length ? shown.map((p, i) => (
+        {state.peopleLoading || state.catalogLoading ? <li className="empty" role="status">Cargando personas…</li>
+          : state.peopleError || state.catalogError ? <li className="empty" role="alert">No se han podido cargar las personas y sus eventos. <button className="link" onClick={() => { state.retryPeople?.(); state.retryCatalog?.() }}>Reintentar</button></li>
+          : shown.length ? shown.map((p, i) => (
           <li className="person" style={at(i)} key={p.id}>
             <button className="person-row" type="button" data-person={p.id} aria-label={`Ver perfil de ${p.name}`} onClick={() => showPerson(p.id)}>
               <Avatar name={p.name} />
               <span className="p-info">
                 <strong>{p.name}</strong>
-                <span><span className="p-handle">@{p.handle}</span> · {p.role}</span>
+                <span>{p.handle && <span className="p-handle">@{p.handle}</span>}{p.handle && p.role ? ' · ' : ''}{p.role}</span>
               </span>
               <span className="p-count">{isMatch ? `${p.shared.length} en común` : plural(p.events.length, 'evento', 'eventos')}</span>
               <span className="p-chev" aria-hidden="true">→</span>
@@ -123,9 +126,11 @@ interface PersonViewProps {
 }
 
 export function PersonView({ id, state, backLabel = '← Todas las personas', onBack }: PersonViewProps) {
-  const p = PEOPLE.find(x => x.id === id)!
+  const p = peopleOf(state).find(x => x.id === id)
+  const events = state.catalog ? new Map(state.catalog.events.map(e => [e.id, e])) : EV
+  if (!p) return <div><button className="link back-link" onClick={onBack}>{backLabel}</button><p role="status">Esta persona ya no está disponible.</p></div>
   const mine = new Set(state.myEvents)
-  const evs = p.events.map(eid => EV.get(eid)).filter(e => e !== undefined)
+  const evs = p.events.map(eid => events.get(eid)).filter(e => e !== undefined)
   const upcoming = evs.filter(e => !isPast(e)).sort(byDateAsc)
   const past = evs.filter(isPast).sort(byDateDesc)
   const shared = evs.filter(e => mine.has(e.id)).length
@@ -157,7 +162,7 @@ export function PersonView({ id, state, backLabel = '← Todas las personas', on
         <Avatar name={p.name} />
         <div>
           <strong>{p.name}</strong>
-          <a className="p-handle pv-x" href={`https://x.com/${p.handle}`} target="_blank" rel="noopener noreferrer" aria-label={`Ver @${p.handle} en X`}>@{p.handle} ↗</a>
+          {p.handle && <a className="p-handle pv-x" href={`https://x.com/${p.handle}`} target="_blank" rel="noopener noreferrer" aria-label={`Ver @${p.handle} en X`}>@{p.handle} ↗</a>}
           <span>{p.role}</span>
         </div>
       </div>

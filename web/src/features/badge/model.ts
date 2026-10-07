@@ -11,11 +11,15 @@ export interface BadgeState {
   catalogLoading?: boolean
   catalogError?: boolean
   retryCatalog?: () => void
+  people?: Person[]
+  peopleLoading?: boolean
+  peopleError?: boolean
+  retryPeople?: () => void
   live?: boolean
 }
 
 /** Personas que puede ver esta acreditación: las de ejemplo solo en la acreditación de ejemplo */
-export const peopleOf = (state: BadgeState): Person[] => (state.live ? [] : PEOPLE)
+export const peopleOf = (state: BadgeState): Person[] => (state.live ? state.people ?? [] : PEOPLE)
 
 export type Section = 'bio' | 'events' | 'people'
 
@@ -101,17 +105,18 @@ export const pillLabel = (e: TechEvent, on: boolean) =>
 
 /* ───────── Datos derivados ───────── */
 
-export function contacts(myEvents: string[], people: Person[] = PEOPLE): Contact[] {
+export function contacts(myEvents: string[], people: Person[] = PEOPLE, catalog?: Catalog): Contact[] {
   const mine = new Set(myEvents)
+  const events = catalog ? new Map(catalog.events.map(e => [e.id, e])) : EV
   return people
-    .map(p => ({ ...p, shared: p.events.filter(id => mine.has(id)).map(id => EV.get(id)!).sort(byDateDesc) }))
+    .map(p => ({ ...p, shared: p.events.filter(id => mine.has(id)).map(id => events.get(id)).filter((e): e is TechEvent => Boolean(e)).sort(byDateDesc) }))
     .filter(p => p.shared.length)
     .sort((a, b) => b.shared.length - a.shared.length || a.name.localeCompare(b.name, 'es'))
 }
 
 // personas con las que no has coincidido en ningún evento
-export function others(myEvents: string[], people: Person[] = PEOPLE): Contact[] {
-  const matched = new Set(contacts(myEvents, people).map(p => p.id))
+export function others(myEvents: string[], people: Person[] = PEOPLE, catalog?: Catalog): Contact[] {
+  const matched = new Set(contacts(myEvents, people, catalog).map(p => p.id))
   return people
     .filter(p => !matched.has(p.id))
     .map(p => ({ ...p, shared: [] }))
@@ -147,7 +152,7 @@ export function myOrgs(myEvents: string[], catalog?: Catalog) {
 
 export function shareText(state: BadgeState) {
   const { past, upcoming } = myEventsSplit(state.myEvents, state.catalog)
-  const n = contacts(state.myEvents, peopleOf(state)).length
+  const n = contacts(state.myEvents, peopleOf(state), state.catalog).length
   let text = `Mi acreditación en techxdir: ${plural(past.length, 'evento tech', 'eventos tech')} y ${plural(n, 'persona', 'personas')} con las que he coincidido.`
   if (upcoming[0]) text += ` Próximo: ${upcoming[0].name}. ¿Coincidimos?`
   return text
