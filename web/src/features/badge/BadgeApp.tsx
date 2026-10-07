@@ -438,7 +438,7 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
     if (focusBtn) focusQuiet(shareBtnRef.current)
   }, [])
 
-  const people = contacts(state.myEvents, peopleOf(state))
+  const people = contacts(state.myEvents, peopleOf(state), state.catalog)
   const { past, upcoming } = myEventsSplit(state.myEvents, state.catalog)
   const heads: Record<Section, [string, string]> = {
     bio: ['Tu bio', 'Los cambios se ven al momento en la acreditación.'],

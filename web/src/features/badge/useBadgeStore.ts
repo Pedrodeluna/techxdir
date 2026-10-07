@@ -1,3 +1,4 @@
+import { usePeople } from './usePeople'
 import { useCatalog } from '../events/catalog'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { updateProfile, getProfile, type Profile } from '../../lib/api'
@@ -49,6 +50,7 @@ const fromProfile = (p: Profile, photo: string | null): BadgeState['me'] => ({
 /** userId = null → acreditación de ejemplo */
 export function useBadgeStore(userId: string | null) {
   const { catalog, loading: catalogLoading, error: catalogError, retry: retryCatalog } = useCatalog(Boolean(userId))
+  const { people, loading: peopleLoading, error: peopleError, retry: retryPeople } = usePeople(userId)
   const key = userId ? userKey(userId) : SAMPLE_KEY
   const [state, setState] = useState<BadgeState>(() =>
     userId
@@ -98,6 +100,6 @@ export function useBadgeStore(userId: string | null) {
     return saved
   }, [key, userId])
 
-  const shown = userId ? { ...state, live: true, catalog, catalogLoading, catalogError, retryCatalog } : state
+  const shown = userId ? { ...state, live: true, people, peopleLoading, peopleError, retryPeople, catalog, catalogLoading, catalogError, retryCatalog } : state
   return [shown, update, ready] as const
 }

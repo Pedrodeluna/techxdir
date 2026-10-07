@@ -8,7 +8,7 @@ import { at, focusQuiet, replay } from '../dom'
 import { downloadIcs } from '../lib/download'
 import { PersonView } from './PeoplePanel'
 import {
-  EV as SAMPLE_EV, EVENTS as SAMPLE_EVENTS, ORG as SAMPLE_ORG, PEOPLE, peopleOf, byDateAsc, byDateDesc, contacts, contactsAt, fmtDate, fmtRange, isPast,
+  EV as SAMPLE_EV, EVENTS as SAMPLE_EVENTS, ORG as SAMPLE_ORG, peopleOf, byDateAsc, byDateDesc, contacts, contactsAt, fmtDate, fmtRange, isPast,
   myEventsSplit, pillLabel, plural, whenLabel, type BadgeState,
 } from '../model'
 
@@ -144,11 +144,11 @@ export function EventsPanel({ state, toggle, bodyRef, tab, setTab, escRef }: Pro
   const backLabel = () => {
     const prev = trail[trail.length - 2]
     if (!prev) return '← Eventos'
-    const name = { event: EV.get(prev.id)?.name, org: ORG.get(prev.id)?.name, person: PEOPLE.find(p => p.id === prev.id)?.name }[prev.type]
+    const name = { event: EV.get(prev.id)?.name, org: ORG.get(prev.id)?.name, person: peopleOf(state).find(p => p.id === prev.id)?.name }[prev.type]
     return `← ${name}`
   }
 
-  const people = contacts(state.myEvents, peopleOf(state))
+  const people = contacts(state.myEvents, peopleOf(state), state.catalog)
   const mine = new Set(state.myEvents)
   const itemProps = (e: TechEvent, i: number) => ({
     e, i, org: ORG.get(e.org),
@@ -216,7 +216,7 @@ export function EventsPanel({ state, toggle, bodyRef, tab, setTab, escRef }: Pro
   }
 
   // lista
-  const listPeople = contacts(listMine, peopleOf(state))
+  const listPeople = contacts(listMine, peopleOf(state), state.catalog)
   const listSet = new Set(listMine)
   let groups: [string, TechEvent[]][]
   if (tab === 'mine') {
@@ -342,7 +342,7 @@ function EventView({ id, state, backLabel, onBack, onOrg, onPerson, onToggle }: 
         {!past && <button className="link" type="button" onClick={() => downloadIcs(e)}>Añadir al calendario</button>}
       </div>
 
-      <h3 className="group-title" style={at(4)}>{past ? 'Quién fue' : 'Quién va'} · {total}</h3>
+      <h3 className="group-title" style={at(4)}>{past ? 'Quién fue' : 'Quién va'}{!state.peopleLoading && !state.peopleError && ` · ${total}`}</h3>
       <ul className="att-list" style={at(5)}>
         {on && (
           <li className="att att-you">
@@ -350,19 +350,21 @@ function EventView({ id, state, backLabel, onBack, onOrg, onPerson, onToggle }: 
             <span className="p-info"><strong>Tú</strong><span><span className="p-handle">@{me.handle}</span></span></span>
           </li>
         )}
+        {state.peopleLoading && <li className="empty" role="status">Cargando asistentes…</li>}
+        {state.peopleError && <li className="empty" role="alert">No se han podido cargar los asistentes. <button className="link" onClick={state.retryPeople}>Reintentar</button></li>}
         {attendees.map(p => (
           <li className="att-item" key={p.id}>
             <button className="att att-open" type="button" data-person={p.id} aria-label={`Ver perfil de ${p.name}`} onClick={() => onPerson(p.id)}>
               <Avatar name={p.name} />
               <span className="p-info">
                 <strong>{p.name}</strong>
-                <span><span className="p-handle">@{p.handle}</span> · {p.role}</span>
+                <span>{p.handle && <span className="p-handle">@{p.handle}</span>}{p.handle && p.role ? ' · ' : ''}{p.role}</span>
               </span>
               <span className="p-chev" aria-hidden="true">→</span>
             </button>
           </li>
         ))}
-        {!attendees.length && !on && <li className="empty">Nadie de tu red {past ? 'fue' : 'va'} todavía.</li>}
+        {!state.peopleLoading && !state.peopleError && !attendees.length && !on && <li className="empty">Nadie de tu red {past ? 'fue' : 'va'} todavía.</li>}
       </ul>
     </div>
   )
