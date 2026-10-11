@@ -1,0 +1,17 @@
+.site-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 24px var(--gutter, clamp(16px, 4vw, 56px)); }
+.site-header .wordmark { font-size: 20px; }
+.site-header a { color: var(--ink); text-decoration: none; }
+.site-header nav { display: flex; align-items: center; gap: clamp(12px, 2vw, 28px); font-size: 14px; }
+.site-header nav > a { padding-block: 10px; border-bottom: 1px solid transparent; }
+.site-header nav > a[aria-current], .site-header nav > a:hover { border-bottom-color: var(--ink); }
+.site-header :is(a, summary):focus-visible { outline: 1.5px solid var(--ink); outline-offset: 4px; }
+.account-menu { position: relative; z-index: 20; }
+.account-menu summary { padding: 10px 16px; border: 1px solid var(--line); border-radius: 99px; cursor: pointer; white-space: nowrap; }
+.account-options { position: absolute; right: 0; top: calc(100% + 10px); width: 230px; padding: 12px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
+.account-options > a { display: block; padding: 10px 8px; }
+.account-options > a:hover { text-decoration: underline; }
+.account-options .sign-out { margin-top: 8px; align-items: start; justify-items: stretch; }
+@media (max-width: 560px) {
+  .site-header { flex-wrap: wrap; gap: 12px; padding-block: 16px; }
+  .site-header nav { width: 100%; justify-content: space-between; font-size: 13px; }
+}

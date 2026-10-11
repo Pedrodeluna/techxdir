@@ -67,7 +67,7 @@ export function PeoplePanel({ state, bodyRef, tab, setTab }: Props) {
     : people
   const empty = people.length
     ? 'Nadie coincide con esa búsqueda.'
-    : (!all.length ? 'Todavía no hay otras personas registradas.' : isMatch ? 'Aún no tienes eventos en común con otras personas.' : 'Has coincidido con todo el mundo.')
+    : (!all.length ? 'Todavía no hay otras personas registradas.' : isMatch ? 'Marca los eventos a los que has ido para encontrar personas con las que has coincidido.' : 'Has coincidido con todo el mundo.')
   const { mode } = render
 
   return (

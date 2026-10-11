@@ -23,7 +23,7 @@ export function Auth() {
     document.title = 'techxdir · Recoge tu acreditación'
   }, [])
 
-  if (session) return <Navigate to="/acreditacion" replace />
+  if (session) return <Navigate to="/" replace />
 
   const busy = status.kind === 'sending'
 

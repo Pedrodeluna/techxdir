@@ -6,6 +6,7 @@
   "engines": { "node": ">=24 <25" },
   "scripts": {
     "dev": "npm run dev -w web",
+    "dev:local": "node scripts/dev-local.mjs",
     "build": "npm run build -w web",
     "lint": "npm run lint -w web",
     "preview": "npm run preview -w web",

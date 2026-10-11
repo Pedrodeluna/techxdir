@@ -100,6 +100,14 @@ Without Supabase variables, `/entrar` shows a demo notice and `/acreditacion` op
 
 This starts a separate local database and Auth service; hosted users and data are not copied. Use `127.0.0.1` consistently for both services and the browser.
 
+With dependencies installed and Docker Desktop or OrbStack running, start everything with:
+
+```sh
+npm run dev:local
+```
+
+This starts Supabase, serves the edge functions, and starts Vite at http://127.0.0.1:55330. It reads the local API URL and anon key from `supabase status` and passes them to Vite without changing your env files. X login still requires the root `.env` and X callback configuration below. Ctrl+C stops the functions and frontend; Supabase stays running. Use `supabase stop` to stop its containers without resetting the database.
+
 1. Install the dependencies with Node 24:
    ```sh
    npm ci
@@ -285,3 +293,17 @@ For automatic deployment when a pull request is merged into `main`, connect this
 ## Authors
 
 A side project by [@pedrodelunah](https://x.com/pedrodelunah), [@franms_dev](https://x.com/franms_dev) and [@elashera](https://x.com/elashera).
+
+
+### Optional synthetic local events
+
+`scripts/seed-local-events.sql` adds 67 clearly labelled `[PRUEBA]` events, including
+36 in the Balearic and Canary Islands, four in Andalusia and three in Galicia. Dates are relative to the insertion date;
+re-running preserves existing rows. It does not create people or attendances and
+is deliberately excluded from migrations and the normal verified seed.
+
+Apply only to this project's local container:
+
+```sh
+docker exec -i supabase_db_techxdir psql -U postgres -d postgres -v ON_ERROR_STOP=1 < scripts/seed-local-events.sql
+```

@@ -57,6 +57,7 @@ export function useBadgeStore(userId: string | null) {
       ? read(userKey(userId)) ?? { me: { ...DEFAULT_ME, name: '', handle: '', role: '', company: '', bio: '', photo: null }, myEvents: [] }
       : sample(),
   )
+  const [profileError, setProfileError] = useState(false)
   const [ready, setReady] = useState(!userId)
   const latest = useRef(state)
   useEffect(() => { latest.current = state })
@@ -77,7 +78,7 @@ export function useBadgeStore(userId: string | null) {
       setState(next)
       write(userKey(userId), next)
       setReady(true)
-    }).catch(() => alive && setReady(true)) // sin red: seguimos con la copia local
+    }).catch(() => { if (alive) { setProfileError(true); setReady(true) } }) // sin red: seguimos con la copia local
     return () => { alive = false }
   }, [userId])
 
@@ -101,5 +102,5 @@ export function useBadgeStore(userId: string | null) {
   }, [key, userId])
 
   const shown = userId ? { ...state, live: true, people, peopleLoading, peopleError, retryPeople, catalog, catalogLoading, catalogError, retryCatalog } : state
-  return [shown, update, ready] as const
+  return [shown, update, ready, profileError] as const
 }

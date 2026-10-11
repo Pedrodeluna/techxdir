@@ -24,3 +24,27 @@ FORM: The Printed Programme, position 4 on my ordered list, seed key 18660bb1.
 SIGNATURE INTERACTION: hovering a programme row highlights the badge zone it feeds (events count / org logos); clicking a badge zone scrolls to its entry in the "Cómo se usa" programme table (foto, eventos, coincidencias as three programme rows, then a last row "Tú · Recoge la tuya" with the CTA). No closing CTA band. Programme dates are labelled as example dates until the calendar is connected.
 
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+
+
+## Inicio autenticado: integración de la acreditación
+
+Mode: Operate cuando existe sesión; Persuade para visitantes.
+
+La tarjeta propia es interactiva en Inicio: bio, eventos y personas usan los
+paneles y las animaciones originales de `BadgeApp`. El programa comparte el
+espacio de los paneles y queda oculto e inerte al abrirlos. El mapa/lista sigue
+debajo; al seleccionar un evento se abre su ficha en la escena y, al cerrar,
+se recuperan el desplazamiento y el foco del punto de partida.
+
+Navegación: Inicio, Explorar eventos y Mi cuenta. La acreditación aislada es una
+ampliación opcional; el acceso completado vuelve a Inicio. El explorador ocupa el ancho de Inicio y conserva sus filtros. No hay enlace
+a una ampliación separada; `/eventos` redirige a esta sección. En móvil la ficha
+de ciudad se coloca debajo del mapa, con controles táctiles de al menos 44 px.
+
+Validación visual y móvil pendiente: el usuario pidió detener pruebas y computer use.
+
+
+El explorador usa un selector de ciudad junto al buscador y los pines originales con tallo, círculo y punto central.
+Los nombres se revelan al pasar el ratón, enfocar o seleccionar. Baleares y
+Canarias conservan su posición original en el mapa único, sin paneles laterales.
+La ficha seleccionada aparece debajo del mapa sin ocultar los otros marcadores.
