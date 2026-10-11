@@ -1,9 +1,10 @@
 import { EventMap } from '../features/events/EventMap'
 import { useCatalog } from '../features/events/catalog'
 import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../lib/auth-context'
-import { SignOutButton } from '../lib/SignOutButton'
+import { SiteHeader } from '../components/SiteHeader'
+import { BadgeApp } from '../features/badge/BadgeApp'
 import { BadgeBack, BadgeFront } from '../features/badge/BadgeFront'
 import { DEFAULT_ME, DEFAULT_MY_EVENTS, byDateAsc, fmtDate, isPast, plural, type Section } from '../features/badge/model'
 import '../styles/badge.css'
@@ -19,8 +20,25 @@ const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches
 
 export function Landing() {
   const { catalog, loading, error, retry } = useCatalog()
-  const { session } = useAuth()
+  const { session, loading: authLoading } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  const [eventRequest, setEventRequest] = useState<{ id: string; sequence: number } | null>(null)
+  const openEvent = (id: string) => setEventRequest(previous => ({ id, sequence: (previous?.sequence ?? 0) + 1 }))
+  useEffect(() => {
+    const id = new URLSearchParams(location.search).get('event')
+    if (id && session?.user.id) setEventRequest(previous => ({ id, sequence: (previous?.sequence ?? 0) + 1 }))
+  }, [location.search, session?.user.id])
+  useEffect(() => {
+    if (location.hash !== '#encuentros' || loading) return
+    const frame = requestAnimationFrame(() => {
+      document.getElementById('encuentros')?.scrollIntoView({
+        behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
+        block: 'start',
+      })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [location.key, location.hash, loading])
   const cardRef = useRef<HTMLDivElement>(null)
   const [lit, setLit] = useState<Section | null>(null)
   // el programa arranca con los últimos eventos celebrados y sigue con los próximos
@@ -44,47 +62,10 @@ export function Landing() {
       [{ transform: 'rotateY(-180deg)' }, { transform: 'rotateY(0deg)' }],
       { duration: 1400, delay: 250, easing: 'cubic-bezier(.65, 0, .25, 1)', fill: 'backwards' },
     )
-  }, [])
+  }, [authLoading, session?.user.id])
 
-  return (
-    <div className="lp">
-      <header className="lp-top">
-        <Link to="/" className="wordmark lp-mark">techx<b>dir</b></Link>
-        {session && <SignOutButton />}
-      </header>
-
-      <main className="lp-main">
-        <h1 id="lp-title" className="lp-title">Tu acreditación es el menú.</h1>
-
-        <section className="lp-intro" aria-labelledby="lp-title">
-          <p className="lp-lede">
-            Guarda los eventos tech a los que vas y las personas con las que coincides en ellos.
-          </p>
-          <div className="lp-actions">
-            <Link to="/entrar" className="primary lp-cta">Recoge tu acreditación</Link>
-            <Link to="/ejemplo" className="link">Ver una de ejemplo</Link>
-          </div>
-        </section>
-
-        <aside className="lp-badge" aria-label="Acreditación de ejemplo">
-          <div className="lp-hang">
-            <div className="card" ref={cardRef}>
-              <BadgeFront
-                state={SAMPLE_STATE}
-                current={lit}
-                shareOpen={false}
-                faceRef={null}
-                shareBtnRef={null}
-                onOpen={() => navigate('/ejemplo')}
-                onShare={() => navigate('/entrar')}
-              />
-              <BadgeBack />
-            </div>
-          </div>
-          <p className="lp-note">Ejemplo · Alex y sus contactos son inventados</p>
-        </aside>
-
-        <section className="lp-programme" aria-labelledby="lp-prog">
+  const programme = (
+    <section className="lp-programme" aria-labelledby="lp-prog">
           <h2 id="lp-prog" className="label">Programa · encuentros tech</h2>
           <table className="lp-table">
             <thead className="sr-only">
@@ -106,7 +87,7 @@ export function Landing() {
                     onPointerLeave={() => setLit(null)}
                   >
                     <td className="lp-date">{d.day} {d.mon}<small>{d.year}</small></td>
-                    <td className="lp-ev">{e.name}<small>{catalog.orgs.find(o => o.id === e.org)?.name}</small></td>
+                    <td className="lp-ev">{session ? <button type="button" onClick={() => openEvent(e.id)}>{e.name}</button> : e.url ? <a href={e.url} target="_blank" rel="noopener noreferrer">{e.name}</a> : e.name}<small>{catalog.orgs.find(o => o.id === e.org)?.name}</small></td>
                     <td className="lp-city">{e.city}</td>
                     <td className="lp-kind">{e.kind}</td>
                   </tr>,
@@ -119,8 +100,48 @@ export function Landing() {
             No hablamos en nombre de los organizadores.
           </p>
         </section>
-        <div className="lp-atlas">
-          {loading ? <p role="status">Cargando encuentros…</p> : error ? <p role="alert">No se ha podido cargar la agenda. <button className="link" onClick={retry}>Reintentar</button></p> : <EventMap events={catalog.events} />}
+  )
+
+  return (
+    <div className={`lp${session ? " lp-personal" : ""}`}>
+      <SiteHeader />
+
+      <main className="lp-main">
+        <h1 id="lp-title" className="lp-title">Tu acreditación es el menú.</h1>
+
+        {!session && !authLoading && <section className="lp-intro" aria-labelledby="lp-title">
+          <p className="lp-lede">
+            Guarda los eventos tech a los que vas y las personas con las que coincides en ellos.
+          </p>
+          <div className="lp-actions">
+            <Link to="/entrar" className="primary lp-cta">Recoge tu acreditación</Link>
+            <Link to="/ejemplo" className="link">Ver una de ejemplo</Link>
+          </div>
+        </section>}
+
+        {session ? <BadgeApp key={session.user.id} embedded summary={programme} eventRequest={eventRequest} /> : <aside className="lp-badge" aria-label={session ? "Tu acreditación" : "Acreditación de ejemplo"}>
+          {authLoading ? <p role="status">Cargando tu sesión…</p> : <>
+          <div className="lp-hang">
+            <div className="card" ref={cardRef}>
+              <BadgeFront
+                state={SAMPLE_STATE}
+                current={lit}
+                shareOpen={false}
+                faceRef={null}
+                shareBtnRef={null}
+                onOpen={() => navigate('/ejemplo')}
+                onShare={() => navigate('/entrar')}
+              />
+              <BadgeBack />
+            </div>
+          </div>
+          <p className="lp-note">Ejemplo · Alex y sus contactos son inventados</p>
+          </>}
+        </aside>}
+
+        {!session && programme}
+        <div className="lp-atlas" id="encuentros">
+          {loading ? <p role="status">Cargando encuentros…</p> : error ? <p role="alert">No se ha podido cargar la agenda. <button className="link" onClick={retry}>Reintentar</button></p> : <EventMap events={catalog.events} onOpen={session ? openEvent : undefined} persistenceKey="techxdir:explore" searchable />}
         </div>
       </main>
 

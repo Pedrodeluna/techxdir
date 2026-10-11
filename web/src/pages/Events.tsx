@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { SiteHeader } from '../components/SiteHeader'
 import { EventMap } from '../features/events/EventMap'
 import { useCatalog } from '../features/events/catalog'
 import { useAuth } from '../lib/auth-context'
@@ -9,11 +10,7 @@ import './events.css'
 export function Events() {
   const { catalog, loading, error, retry } = useCatalog()
   const { session } = useAuth()
-  const { state } = useLocation()
-  const from = state?.from
-  const backTo = from === '/ejemplo' || from === '/acreditacion'
-    ? from
-    : session ? '/acreditacion' : '/'
+  const navigate = useNavigate()
 
   useEffect(() => {
     document.title = 'techxdir · Mapa y eventos'
@@ -22,11 +19,9 @@ export function Events() {
 
   return (
     <div className="events-page">
-      <header className="events-top">
-        <Link to="/" className="wordmark">techx<b>dir</b></Link>
-        <Link to={backTo} className="events-back">← {backTo === '/' ? 'Inicio' : 'Acreditación'}</Link>
-      </header>
+      <SiteHeader />
       <main className="events-main">
+        <Link to="/#encuentros" className="events-back">← Volver a Inicio</Link>
         {loading || error ? (
           <section className="events-status">
             <h1>Mapa y eventos.</h1>
@@ -34,7 +29,7 @@ export function Events() {
               <p role="alert">No se ha podido cargar la agenda. <button type="button" className="link" onClick={retry}>Reintentar</button></p>
             )}
           </section>
-        ) : <EventMap events={catalog.events} expanded />}
+        ) : <EventMap events={catalog.events} expanded persistenceKey="techxdir:explore" onOpen={session ? id => navigate(`/?event=${encodeURIComponent(id)}`) : undefined} />}
       </main>
     </div>
   )

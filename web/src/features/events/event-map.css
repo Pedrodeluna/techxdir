@@ -69,10 +69,10 @@
 .atlas-city-popup {
   position: absolute;
   z-index: 2;
-  top: 4%;
-  right: 3%;
+  top: var(--popup-top, 12px);
+  left: var(--popup-left, 12px);
   width: min(360px, 94%);
-  max-height: 92%;
+  max-height: var(--popup-height, 520px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -81,7 +81,6 @@
   border-radius: 18px;
   box-shadow: 0 12px 36px rgba(17, 17, 19, .15);
 }
-.atlas-city-popup.is-left { right: auto; left: 3%; }
 .atlas-city-popup:focus { outline: none; }
 .atlas-popup-head { display: flex; justify-content: space-between; align-items: start; gap: 16px; padding: 20px 20px 14px; }
 .atlas-popup-head .label { color: var(--muted-text); line-height: 1.5; }
@@ -115,7 +114,12 @@
 .atlas-search > div:focus-within { border-bottom-color: var(--ink); }
 .atlas-search input { width: 100%; min-width: 0; min-height: 48px; border: 0; border-radius: 0; background: transparent; font: inherit; color: var(--ink); padding: 10px 0; }
 .atlas-search input::placeholder { color: var(--muted-text); }
-.atlas-search input:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 3px; }
+/* El foco refuerza el subrayado, sin encerrar el campo en una caja. */
+.atlas-search input:focus { outline: none; }
+.atlas-search > div { transition: border-color .2s, box-shadow .2s; }
+.atlas-search > div:focus-within { box-shadow: 0 1px 0 var(--ink); }
+.atlas-search > .label { margin-bottom: 8px; }
+.atlas-search input { font-size: 16px; }
 .atlas-search button { min-height: 44px; }
 .event-atlas-expanded .atlas-event a:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 4px; }
 @media (max-width: 1000px) {
@@ -128,3 +132,64 @@
   .event-atlas-expanded .atlas-view-switch button { padding-inline: 18px; }
   .event-atlas-expanded .atlas-caption { font-size: 9px; letter-spacing: .05em; }
 }
+
+/* Inicio contiene el explorador completo; el mapa aprovecha el ancho disponible. */
+.lp-atlas .event-atlas-map { max-width: 1280px; }
+.lp-atlas .atlas-search { max-width: 680px; }
+.lp-atlas .event-atlas-head { flex-wrap: wrap; }
+.lp-atlas .event-atlas-head > div { min-width: 0; }
+.lp-atlas .atlas-filters { flex-shrink: 0; }
+.lp-atlas .pill, .lp-atlas .atlas-view-switch button { min-height: 44px; }
+.lp-atlas .atlas-cities .pill { font-size: 13px; }
+.atlas-event h4 { overflow-wrap: anywhere; }
+@media (max-width: 600px) {
+  .atlas-toolbar { gap: 10px; flex-wrap: wrap; }
+  .atlas-view-switch button { padding-inline: 18px; }
+  .atlas-cities { flex-wrap: nowrap; overflow-x: auto; padding: 4px 2px 12px; }
+  .atlas-cities .pill { flex-shrink: 0; min-height: 44px; }
+  .atlas-city-popup, .atlas-city-popup.is-left {
+    position: relative; top: auto; right: auto; left: auto;
+    width: 100%; max-height: none; margin-top: 16px;
+    border-radius: 12px; box-shadow: none;
+  }
+  .atlas-popup-events { overflow: visible; }
+  .atlas-map-stage { min-height: 0; }
+}
+
+
+/* Selector de ciudad y pines originales sobre un único mapa. */
+.atlas-controls { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 20px 32px; margin-bottom: 24px; }
+.atlas-controls .atlas-search { flex: 1 1 320px; margin-bottom: 0; }
+.atlas-city-field { flex: 0 1 300px; min-width: 0; }
+.atlas-city-field .label { color: var(--muted-text); margin-bottom: 8px; }
+.atlas-city-name { fill: var(--ink); font: 500 11px 'Space Grotesk', sans-serif; pointer-events: none; }
+@media (max-width: 600px) {
+  .atlas-controls { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .atlas-city-field { width: 100%; }
+}
+
+.atlas-label-line { fill: none; stroke: var(--muted-text); stroke-width: .6; opacity: .5; pointer-events: none; }
+.atlas-pin text { pointer-events: none; }
+.atlas-pin .atlas-island-name { font-size: 11px; }
+@media (max-width: 600px) {
+  .atlas-pin .atlas-pin-name { font-size: 12px; }
+  .atlas-pin .atlas-island-name { font-size: 10px; }
+  .atlas-pin .atlas-pin-count { font-size: 8px; letter-spacing: 0; }
+}
+
+.city-select { position: relative; }
+.city-select-trigger { display: flex; justify-content: space-between; align-items: center; gap: 16px; width: 100%; min-height: 48px; padding: 10px 0; border-bottom: 1px solid var(--line); text-align: left; font-size: 16px; }
+.city-select-trigger > span { min-width: 0; overflow-wrap: anywhere; }
+.city-select-trigger svg { flex: none; width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; transition: rotate .2s; }
+.city-select-trigger[aria-expanded=true] svg { rotate: 180deg; }
+.city-select-trigger:hover, .city-select-trigger:focus-visible, .city-select-trigger[aria-expanded=true] { border-bottom-color: var(--ink); }
+.city-select-trigger:focus-visible { outline: none; box-shadow: 0 1px 0 var(--ink); }
+.city-select-menu { position: absolute; z-index: 10; top: calc(100% + 8px); left: 0; right: 0; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); color: var(--ink); }
+.city-select-menu input { width: 100%; min-height: 44px; padding: 8px 4px; margin-bottom: 8px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; color: var(--ink); font: inherit; font-size: 16px; }
+.city-select-menu input:focus { outline: none; border-bottom-color: var(--ink); }
+.city-select-menu input::placeholder { color: var(--muted-text); }
+.city-select-options { max-height: min(300px, 40dvh); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.city-select-options [role=option] { display: flex; justify-content: space-between; gap: 12px; min-height: 44px; padding: 12px 10px; border-radius: 6px; cursor: pointer; font-size: 14px; line-height: 1.4; }
+.city-select-options [role=option].is-focused { background: var(--soft); }
+.city-select-options [aria-selected=true] { font-weight: 500; }
+.city-select-empty { padding: 16px 4px; font-size: 14px; color: var(--muted-text); }

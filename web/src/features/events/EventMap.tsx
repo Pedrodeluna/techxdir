@@ -1,23 +1,53 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useId, useRef, useState } from 'react'
 import type { TechEvent } from '../../data/sample'
 import { fmtRange, isPast } from '../badge/model'
+import { CitySelect } from './CitySelect'
 import { SPAIN_OUTLINE } from './spain-outline'
-import { cityPoint } from './locations'
+import { cityPoint, PENINSULA_OFFSET, PENINSULA_SCALE } from './locations'
 import './event-map.css'
 
-export function EventMap({ events, onOpen, expanded = false }: { events: TechEvent[]; onOpen?: (id: string) => void; expanded?: boolean }) {
+// Keep the island insets fixed while moving mainland geometry and pins together.
+const landParts = (SPAIN_OUTLINE.match(/M[^M]+/g) ?? []).map(path => {
+  const [x, y] = path.slice(1).match(/[\d.]+/g)!.slice(0, 2).map(Number)
+  return { path, mainland: y < 480 && !(x > 550 && y > 280) }
+})
+
+interface MapFilters { city: string | null; period: string; view: 'map' | 'list'; query: string }
+function readFilters(key?: string): MapFilters {
+  const fallback: MapFilters = { city: null, period: 'next', view: 'map', query: '' }
+  if (!key) return fallback
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(key) ?? 'null')
+    if (!saved) return fallback
+    return { city: typeof saved.city === 'string' ? saved.city : null,
+      period: saved.view === 'list' && ['all', 'next', 'past'].includes(saved.period) ? saved.period : 'next',
+      view: saved.view === 'list' ? 'list' : 'map', query: typeof saved.query === 'string' ? saved.query : '' }
+  } catch { return fallback }
+}
+
+export function EventMap({ events, onOpen, expanded = false, searchable = false, persistenceKey }: {
+  events: TechEvent[]; onOpen?: (id: string) => void; expanded?: boolean; searchable?: boolean; persistenceKey?: string
+}) {
   const id = useId()
-  const [city, setCity] = useState<string | null>(null)
-  const [period, setPeriod] = useState('all')
-  const [view, setView] = useState<'map' | 'list'>('map')
-  const [query, setQuery] = useState('')
+  const [initial] = useState(() => readFilters(persistenceKey))
+  const [city, setCity] = useState<string | null>(initial.city)
+  const [period, setPeriod] = useState(initial.period)
+  const [view, setView] = useState<'map' | 'list'>(initial.view)
+  const [query, setQuery] = useState(initial.query)
   const popupRef = useRef<HTMLDivElement>(null)
+  const mapStageRef = useRef<HTMLDivElement>(null)
+  const mapSvgRef = useRef<SVGSVGElement>(null)
   const listButtonRef = useRef<HTMLButtonElement>(null)
   const cityTriggerRef = useRef<HTMLElement | SVGElement | null>(null)
   const normalize = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es').trim()
-  const search = expanded ? normalize(query) : ''
+  const search = normalize(query)
+  useEffect(() => {
+    if (persistenceKey) {
+      try { sessionStorage.setItem(persistenceKey, JSON.stringify({ city, period, view, query })) } catch { /* storage unavailable */ }
+    }
+  }, [persistenceKey, city, period, view, query])
   const filtered = events.filter(e =>
-    (period === 'all' || (period === 'next' ? !isPast(e) : isPast(e))) &&
+    (view === 'map' ? !isPast(e) : period === 'all' || (period === 'next' ? !isPast(e) : isPast(e))) &&
     (!search || normalize(`${e.name} ${e.city} ${e.kind}`).includes(search)),
   )
   const cities = [...new Set(filtered.map(e => e.city))].sort((a, b) => a.localeCompare(b, 'es'))
@@ -45,6 +75,44 @@ export function EventMap({ events, onOpen, expanded = false }: { events: TechEve
     if (cityEventsVisible) popupRef.current?.focus({ preventScroll: true })
   }, [cityEventsVisible, selected])
 
+  useLayoutEffect(() => {
+    if (!cityEventsVisible) return
+    const stage = mapStageRef.current
+    const svg = mapSvgRef.current
+    const popup = popupRef.current
+    if (!stage || !svg || !popup) return
+    const position = () => {
+      // En móvil la ficha permanece en el flujo, debajo del mapa.
+      if (matchMedia('(max-width: 600px)').matches) return
+      const bounds = stage.getBoundingClientRect()
+      const matrix = svg.getScreenCTM()
+      if (!matrix) return
+      const point = selectedPoint
+        ? new DOMPoint(selectedPoint.x, selectedPoint.y - 24).matrixTransform(matrix)
+        : new DOMPoint(bounds.left + bounds.width / 2, bounds.top + 32)
+      const x = point.x - bounds.left
+      const y = point.y - bounds.top
+      const padding = 12
+      const gap = 28
+      const mapHeight = svg.getBoundingClientRect().height
+      const maxHeight = Math.max(120, Math.min(520, mapHeight - padding * 2, innerHeight - 48))
+      stage.style.setProperty('--popup-height', `${maxHeight}px`)
+      const width = popup.offsetWidth
+      const height = Math.min(popup.offsetHeight, maxHeight)
+      const beside = x + gap + width <= bounds.width - padding ? x + gap : x - gap - width
+      const left = Math.max(padding, Math.min(beside, bounds.width - width - padding))
+      const top = Math.max(padding, Math.min(y - 32, mapHeight - height - padding))
+      stage.style.setProperty('--popup-left', `${left}px`)
+      stage.style.setProperty('--popup-top', `${top}px`)
+    }
+    position()
+    const observer = new ResizeObserver(position)
+    observer.observe(svg)
+    observer.observe(popup)
+    window.addEventListener('resize', position)
+    return () => { observer.disconnect(); window.removeEventListener('resize', position) }
+  }, [cityEventsVisible, selectedPoint?.x, selectedPoint?.y, shown.length])
+
   const eventRows = shown.map(e => (
     <article key={e.id} className="atlas-event">
       <span className="label">{fmtRange(e).text} · {isPast(e) ? 'Celebrado' : 'Próximo'}</span>
@@ -61,31 +129,37 @@ export function EventMap({ events, onOpen, expanded = false }: { events: TechEve
           {expanded ? <><h1 id={`${id}-title`}>Mapa y eventos.</h1><p className="atlas-intro">Encuentra tu próximo encuentro. Explora por ciudad o recorre la agenda.</p></> : <h2 id={`${id}-title`}>Nos vemos por aquí.</h2>}
         </div>
         <div className="atlas-filters" aria-label="Fechas de los eventos">
-          {[['all', 'Todos'], ['next', 'Próximos'], ['past', 'Celebrados']].map(([value, label]) => <button type="button" className="pill" key={value} aria-pressed={period === value} onClick={() => setPeriod(value)}>{label}</button>)}
+          {[['all', 'Todos'], ['next', 'Próximos'], ['past', 'Celebrados']].filter(([value]) => view === 'list' || value !== 'all').map(([value, label]) => <button type="button" className="pill" key={value} aria-pressed={period === value} onClick={() => { setPeriod(value); if (value === 'past') setView('list') }}>{label}</button>)}
         </div>
       </header>
-      {expanded && <div className="atlas-search">
+      <div className="atlas-controls">
+      {(expanded || searchable) && <div className="atlas-search">
         <label htmlFor={`${id}-search`} className="label">Buscar encuentros</label>
         <div>
           <input id={`${id}-search`} type="search" placeholder="Evento, ciudad o tipo de encuentro" value={query} onChange={e => setQuery(e.target.value)} />
           {query && <button type="button" className="link" onClick={() => setQuery('')}>Limpiar</button>}
         </div>
       </div>}
+        <CitySelect cities={cities} value={selected} onChange={(next, trigger) => {
+          cityTriggerRef.current = trigger
+          setCity(next)
+        }} />
+      </div>
       <div className="atlas-toolbar">
         <div className="atlas-view-switch" role="group" aria-label="Vista de eventos">
-          <button type="button" aria-pressed={view === 'map'} aria-controls={`${id}-map`} onClick={() => setView('map')}>Mapa</button>
+          <button type="button" aria-pressed={view === 'map'} aria-controls={`${id}-map`} onClick={() => { setPeriod('next'); setView('map') }}>Mapa</button>
           <button ref={listButtonRef} type="button" aria-pressed={view === 'list'} aria-controls={`${id}-list`} onClick={showList}>Lista</button>
         </div>
         <span className="label" aria-live="polite">{shown.length} eventos{selected ? ` · ${selected}` : ''}</span>
       </div>
-      <div className="atlas-cities" aria-label="Filtrar por ciudad"><button type="button" className="pill" aria-pressed={!selected} onClick={() => setCity(null)}>Toda España</button>{cities.map(name => <button type="button" className="pill" key={name} aria-pressed={selected === name} onClick={e => selectCity(name, e.currentTarget)}>{name}</button>)}</div>
-      {expanded && !shown.length && view === 'map' && <p className="atlas-empty" role="status">No hay eventos con estos filtros. Prueba otra búsqueda o cambia las fechas.</p>}
+
+      {!shown.length && view === 'map' && <p className="atlas-empty" role="status">No hay eventos con estos filtros. Prueba otra búsqueda o cambia las fechas.</p>}
       <div className="event-atlas-body">
         <div id={`${id}-map`} className="event-atlas-map" hidden={view !== 'map'}>
-          <div className="atlas-caption"><span>ES / ATLAS DE ENCUENTROS</span><span>{String(cities.filter(name => cityPoint(name)).length).padStart(2, '0')} CIUDADES</span></div>
-          <div className="atlas-map-stage">
-          <svg viewBox="0 50 760 520" aria-label="Mapa de ciudades con eventos" onClick={e => {
-            if (cityEventsVisible && !(e.target as Element).closest('.atlas-pin')) closeCity()
+          <div className="atlas-caption"><span>ES / PRÓXIMOS ENCUENTROS</span><span>{String(cities.filter(name => cityPoint(name)).length).padStart(2, '0')} CIUDADES</span></div>
+          <div className="atlas-map-stage" ref={mapStageRef}>
+          <svg ref={mapSvgRef} viewBox="0 20 800 570" aria-label="Mapa de ciudades con eventos" onClick={event => {
+            if (cityEventsVisible && !(event.target as Element).closest('.atlas-pin')) closeCity()
           }}>
             <defs>
               <pattern id={`${id}-grid`} width="12" height="12" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r=".85" fill="currentColor" /></pattern>
@@ -97,36 +171,47 @@ export function EventMap({ events, onOpen, expanded = false }: { events: TechEve
               <text x="690" y="115" className="atlas-ocean">N ↑</text>
             </g>
             <g aria-hidden="true" transform="matrix(1 .08 -.16 .82 60 12)">
-              {[9, 6, 3].map(d => <path key={d} d={SPAIN_OUTLINE} transform={`translate(0 ${d})`} className="atlas-land-depth" />)}
-              <path d={SPAIN_OUTLINE} className="atlas-land" />
-              <path d={SPAIN_OUTLINE} fill={`url(#${id}-grid)`} opacity=".3" />
-              <path d="M65 470H270V574H65Z" fill="none" stroke="currentColor" opacity=".2" strokeDasharray="4 6" />
+              {landParts.map(({ path, mainland }) => <g key={path} transform={mainland ? `translate(${PENINSULA_OFFSET.x} ${PENINSULA_OFFSET.y}) scale(${PENINSULA_SCALE})` : undefined}>
+                {[9, 6, 3].map(d => <path key={d} d={path} transform={`translate(0 ${d})`} className="atlas-land-depth" />)}
+                <path d={path} className="atlas-land" />
+                <path d={path} fill={`url(#${id}-grid)`} opacity=".3" />
+              </g>)}
             </g>
-            <text x="530" y="420" className="atlas-ocean">MEDITERRÁNEO</text>
-            {selectedPoint && <g key={selected} aria-hidden="true" className="atlas-locator">
-              <path d={`M35 ${selectedPoint.y - 24}H725M${selectedPoint.x} 80V530`} />
-            </g>}
-            {cities.map(name => {
-              const p = cityPoint(name)
-              if (!p) return null
-              const active = selected === name
-              const height = 24
-              const count = filtered.filter(e => e.city === name).length
-              return <g key={name} className={`atlas-pin${active ? ' is-active' : ''}`} role="button" tabIndex={0} aria-label={`Ver ${count} eventos en ${name}`} aria-pressed={active} onClick={e => selectCity(name, e.currentTarget)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectCity(name, e.currentTarget) } }}>
-                <title>{name}</title><circle cx={p.x} cy={p.y - height} r="23" fill="transparent" />
-                <path d={`M${p.x} ${p.y}v-${height}`} stroke="currentColor" />
-                <ellipse cx={p.x} cy={p.y} rx="9" ry="3" className="atlas-pin-base" />
-                <circle cx={p.x} cy={p.y - height} r="13" className="atlas-pin-ring" />
-                <circle cx={p.x} cy={p.y - height} r={active ? 6 : 4} className="atlas-dot" />
-                {active && <path className="atlas-pin-target" d={`M${p.x - 20} ${p.y - height - 11}v-9h9m22 0h9v9m0 22v9h-9m-22 0h-9v-9`} />}
-                <text x={p.x + 25} y={p.y - height + 1}>{name}</text>
-                <text x={p.x + 25} y={p.y - height + 17} className="atlas-pin-count">{String(count).padStart(2, '0')} {count === 1 ? 'EVENTO' : 'EVENTOS'}</text>
-              </g>
-            })}
+                  {cities.map(name => {
+                    const p = cityPoint(name)
+                    if (!p) return null
+                    const islandCities = cities.filter(city => cityPoint(city)?.region === p.region)
+                      .sort((a, b) => cityPoint(a)!.x - cityPoint(b)!.x)
+                    const islandIndex = islandCities.indexOf(name)
+                    const label = p.text
+                      ? { x: p.x + p.text.dx, y: p.y + p.text.dy, anchor: p.text.anchor }
+                      : p.region === 'canarias'
+                      ? { x: p.x + (islandIndex > 1 ? 65 : 0), y: 507 + (islandIndex % 2) * 42, anchor: 'middle' as const }
+                      : p.region === 'baleares'
+                        ? { x: p.x, y: 385 + (islandIndex % 2 === 0 ? 30 : 0), anchor: 'middle' as const }
+                        : { x: p.x + (p.x > 570 ? -25 : 25), y: p.y - 24, anchor: p.x > 570 ? 'end' as const : 'start' as const }
+                    const active = selected === name
+                    const count = filtered.filter(event => event.city === name).length
+                    return <g key={name} className={`atlas-pin${active ? ' is-active' : ''}`}
+                      role="button" tabIndex={0} aria-label={`${p.label}: ${count} eventos`} aria-pressed={active}
+                      onClick={event => selectCity(name, event.currentTarget)}
+                      onKeyDown={event => {
+                        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); selectCity(name, event.currentTarget) }
+                      }}>
+                      <title>{p.label}: {count} eventos</title>
+                      <circle cx={p.x} cy={p.y - 24} r="23" fill="transparent" />
+                      <path d={`M${p.x} ${p.y}v-24`} stroke="currentColor" />
+                      <ellipse cx={p.x} cy={p.y} rx="9" ry="3" className="atlas-pin-base" />
+                      <circle cx={p.x} cy={p.y - 24} r="13" className="atlas-pin-ring" />
+                      <circle cx={p.x} cy={p.y - 24} r={active ? 6 : 4} className="atlas-dot" />
+                      {p.region !== 'peninsula' && <path className="atlas-label-line" d={`M${p.x} ${p.y + 6}L${label.x} ${label.y - 13}`} />}
+                      <text className={p.region === 'peninsula' ? 'atlas-pin-name' : 'atlas-pin-name atlas-island-name'} x={label.x} y={label.y} textAnchor={label.anchor}>{p.label}</text>
+                    </g>
+                  })}
           </svg>
           {cityEventsVisible && <div
             ref={popupRef}
-            className={`atlas-city-popup${selectedPoint && selectedPoint.x > 380 ? ' is-left' : ''}`}
+            className="atlas-city-popup"
             role="dialog"
             aria-modal="false"
             aria-labelledby={`${id}-city-title`}

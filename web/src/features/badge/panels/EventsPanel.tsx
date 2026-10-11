@@ -19,6 +19,7 @@ type View = { type: 'event' | 'org' | 'person'; id: string }
 type Mode = 'initial' | 'quiet' | 'tab' | 'enter' | 'back' | 'refresh'
 
 interface Props {
+  initialEvent?: string
   state: BadgeState
   toggle: (id: string) => boolean
   bodyRef: RefObject<HTMLDivElement | null>
@@ -27,11 +28,11 @@ interface Props {
   escRef: MutableRefObject<(() => boolean) | null>
 }
 
-export function EventsPanel({ state, toggle, bodyRef, tab, setTab, escRef }: Props) {
+export function EventsPanel({ state, toggle, bodyRef, tab, setTab, escRef, initialEvent }: Props) {
   const EVENTS = state.catalog?.events ?? SAMPLE_EVENTS
   const EV = state.catalog ? new Map(EVENTS.map(e => [e.id, e])) : SAMPLE_EV
   const ORG = state.catalog ? new Map(state.catalog.orgs.map(o => [o.id, o])) : SAMPLE_ORG
-  const [trail, setTrail] = useState<View[]>([]) // pila de vistas abiertas
+  const [trail, setTrail] = useState<View[]>(() => initialEvent ? [{ type: 'event', id: initialEvent }] : []) // pila de vistas abiertas
   const [render, setRender] = useState<{ key: number; mode: Mode }>({ key: 0, mode: 'initial' })
   // la lista se pinta con una copia: un evento que quitas sale animado antes de desaparecer
   const [listMine, setListMine] = useState(state.myEvents)
@@ -248,7 +249,10 @@ export function EventsPanel({ state, toggle, bodyRef, tab, setTab, escRef }: Pro
         style={mode !== 'initial' ? ({ '--base': '0ms' } as CSSProperties) : undefined}
       >
         {state.catalogLoading ? <p className="empty" role="status">Cargando eventos…</p> : state.catalogError ? <p className="empty" role="alert">No se han podido cargar los eventos. <button className="link" onClick={state.retryCatalog}>Reintentar</button></p> : tab === 'discover' ? <EventMap events={EVENTS.filter(e => !listSet.has(e.id))} onOpen={id => pushView({ type: 'event', id })} /> : items.length ? items : (
-          <p className="empty">{tab === 'mine' ? 'Aún no has marcado ningún evento.' : 'Ya tienes todos los eventos en tu acreditación.'}</p>
+          <div className="empty">
+            <p>Aún no has marcado ningún evento.</p>
+            <button type="button" className="link" onClick={() => changeTab('discover')}>Añade tu primer evento</button>
+          </div>
         )}
       </div>
     </>

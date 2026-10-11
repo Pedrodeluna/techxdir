@@ -13,3 +13,5 @@
 .events-main { padding-top: clamp(32px, 5vw, 72px); }
 .events-status h1 { font-size: clamp(40px, 6vw, 88px); font-weight: 300; letter-spacing: -.05em; }
 .events-status p { margin-top: 24px; color: var(--muted-text); }
+.events-page > .site-header { padding-inline: 0; padding-top: 0; }
+.events-main > .events-back { display: inline-block; color: var(--ink); text-decoration: none; margin-bottom: 28px; }

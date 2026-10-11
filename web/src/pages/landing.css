@@ -184,3 +184,58 @@
   .lp-today { display: block; }
   .lp-today td { display: block; }
 }
+
+/* La misma escena animada de la acreditación, dentro de Inicio. */
+.stage-embedded {
+  --w: min(400px, calc((100dvh - 180px) / 1.5), 34vw);
+  --h: calc(var(--w) * 1.5);
+  --pw: min(560px, calc((100vw - 2 * var(--gutter) - var(--gap)) / 2));
+  grid-column: 1 / -1;
+  grid-row: 2;
+  height: auto;
+  min-height: var(--h);
+  padding: 12px 0 64px;
+  overflow: visible;
+  align-items: start;
+  scroll-margin-top: 24px;
+}
+.stage-embedded .stage-summary {
+  grid-area: 1 / 1;
+  width: var(--pw);
+  translate: calc((var(--w) + var(--gap)) / 2) 0;
+  transition: opacity .25s, visibility 0s;
+}
+.stage-embedded.open .stage-summary { opacity: 0; visibility: hidden; pointer-events: none; }
+.stage-embedded:not(.open) .stage-summary { transition: opacity .5s .6s, visibility 0s .6s; }
+.stage-embedded .lp-programme { padding-bottom: 0; }
+.stage-embedded:not(.open) .mover { transform: translateX(calc((var(--pw) + var(--gap)) / -2 + 24px)); }
+.stage-embedded .panel { height: max(var(--h), 500px); max-height: calc(100dvh - 64px); }
+.stage-embedded .panel-head p, .stage-embedded .empty { color: var(--muted-text); }
+.badge-loading { grid-column: 1 / -1; padding: 48px 0; }
+.lp-ev :is(button, a) { color: inherit; text-align: left; text-decoration: none; }
+.lp-ev :is(button, a):hover { text-decoration: underline; text-underline-offset: 3px; }
+.lp-ev :is(button, a):focus-visible { outline: 1.5px solid var(--ink); outline-offset: 3px; }
+#encuentros { scroll-margin-top: 24px; }
+
+@media (max-width: 899px) {
+  .stage-embedded {
+    --w: min(340px, calc(100vw - 64px));
+    grid-row: auto;
+    padding: 8px 0 0;
+    min-height: max(calc(var(--h) + 40px), 640px);
+    overflow: clip;
+    /* La perspectiva vive en la tarjeta; el panel se ancla a esta escena. */
+    perspective: none;
+  }
+  .stage-embedded .mover { grid-area: 1 / 1; perspective: 1800px; }
+  .stage-embedded:not(.open) .mover { transform: none; }
+  .stage-embedded .stage-summary {
+    grid-area: 2 / 1;
+    width: 100%;
+    translate: none;
+    padding-top: 56px;
+    padding-bottom: 32px;
+  }
+  .stage-embedded .panel { position: absolute; inset: 0 24px auto; height: min(720px, calc(100dvh - 48px)); max-height: none; padding-top: 8px; }
+  .stage-embedded .peek { position: absolute; }
+}

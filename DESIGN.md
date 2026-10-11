@@ -209,3 +209,38 @@ The badge is the navigation. Tapping a zone runs a ripple, a full 360° rotateY 
 - **Don't** switch to a dark neon "hacker" look.
 - **Don't** add boxed inputs or card-in-card containers.
 - **Don't** bold big numbers, or set names in mono.
+
+
+## Inicio con sesión
+
+La portada autenticada funciona como espacio de trabajo: acreditación a la izquierda,
+programa a la derecha y explorador de eventos debajo. Reutiliza la escena de
+`BadgeApp` y sus giros, desplazamientos, cambios de lado y gestos; el programa se
+oculta mientras un panel ocupa su espacio y reaparece al cerrarlo. La escena
+integrada permite el scroll de la página. En móvil, el programa se coloca debajo
+de la tarjeta y el panel se abre dentro de la escena.
+
+La cabecera compartida ofrece Inicio, Explorar eventos y Mi cuenta. El mapa de Inicio aprovecha el ancho disponible y conserva ciudad, fechas,
+búsqueda y vista en la sesión del navegador. No tiene una ampliación separada;
+la ruta antigua `/eventos` redirige al explorador de Inicio. Los eventos del programa y del mapa abren su
+ficha junto a la acreditación. La vista aislada sigue disponible como
+Ampliar acreditación dentro de Mi cuenta, con un enlace explícito a Inicio.
+
+Estado de revisión: implementación pendiente de validación visual autenticada y
+móvil. Por petición del usuario, se detuvieron las pruebas y el uso del navegador.
+
+
+El buscador del explorador expresa el foco reforzando el subrayado, sin un marco
+rectangular. La ciudad se elige con un selector nativo junto al buscador. Los marcadores conservan el pin original con tallo, círculo y punto central;
+el nombre se revela en la región al
+pasar el ratón, enfocar con teclado o seleccionar. Baleares y Canarias mantienen su posición original dentro del mismo mapa: las
+Baleares al este de la península y Canarias en el recuadro inferior izquierdo. La ficha de ciudad se
+muestra debajo de las regiones y la página controla el scroll.
+
+
+Los pinchos del mapa llevan únicamente el nombre de la ciudad (o de la isla en
+los archipiélagos), sin contador junto a la etiqueta. En Galicia y Andalucía,
+las etiquetas se distribuyen a distintos lados para separar las localidades
+cercanas. Los pinchos mantienen las coordenadas proyectadas de cada ciudad,
+sin desplazamientos editoriales hacia el mar. Las posiciones siguen siendo
+aproximadas; el panel flotante se ancla al pincho que se muestra en pantalla.

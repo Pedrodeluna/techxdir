@@ -12,7 +12,7 @@ import { useBadgeStore } from './useBadgeStore'
 import { useAuth } from '../../lib/auth-context'
 import { SignOutButton } from '../../lib/SignOutButton'
 import { useIsAdmin } from '../../lib/useIsAdmin'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import '../../styles/badge.css'
 
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -31,11 +31,20 @@ type Side = 'left' | 'right' | null
 /* La escena: la tarjeta gira y se aparta, y el panel aparece al otro lado */
 
 /** sample = acreditación de ejemplo (/ejemplo, o todo en modo demo) */
-export function BadgeApp({ sample = false }: { sample?: boolean }) {
+export function BadgeApp({ sample = false, embedded = false, summary, eventRequest }: {
+  sample?: boolean
+  embedded?: boolean
+  summary?: ReactNode
+  eventRequest?: { id: string; sequence: number } | null
+}) {
   const notify = useNotify()
+  const location = useLocation()
   const { session } = useAuth()
   const isAdmin = useIsAdmin()
-  const [state, update, ready] = useBadgeStore(sample ? null : session?.user.id ?? null)
+  const [state, update, ready, profileError] = useBadgeStore(sample ? null : session?.user.id ?? null)
+  const [initialEvent, setInitialEvent] = useState<string | undefined>()
+  const returnPoint = useRef<{ y: number; target: HTMLElement | null } | null>(null)
+  const handledRequest = useRef<typeof eventRequest>(null)
   const [current, setCurrent] = useState<Section | null>(null) // sección abierta en el panel
   const [panel, setPanel] = useState<{ section: Section; key: number; mode: 'initial' | 'switch' } | null>(null)
   const [stage, setStage] = useState({ open: false, cardRight: false, panelLeft: false, swapping: false })
@@ -60,10 +69,11 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
   useLayoutEffect(() => { currentRef.current = current })
 
   useEffect(() => {
+    if (embedded) return
     document.body.classList.add('is-badge')
     document.title = 'techxdir · Acreditación'
     return () => document.body.classList.remove('is-badge')
-  }, [])
+  }, [embedded])
 
   /* ───────── Movimiento de la tarjeta ───────── */
 
@@ -132,7 +142,7 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
       tilt.removeEventListener('pointermove', onMove)
       tilt.removeEventListener('pointerleave', resetTilt)
     }
-  }, [])
+  }, [ready])
 
   const ripple = (zone: HTMLElement, ev: MouseEvent) => {
     const r = zone.getBoundingClientRect()
@@ -171,7 +181,11 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
     setStage(s => ({ ...s, open: false }))
     setTimeout(() => {
       busy.current = false
-      focusQuiet(frontRef.current?.querySelector(`[data-open="${was}"]`))
+      if (returnPoint.current) {
+        window.scrollTo({ top: returnPoint.current.y, behavior: 'instant' })
+        if (returnPoint.current.target?.isConnected) focusQuiet(returnPoint.current.target)
+        returnPoint.current = null
+      } else focusQuiet(frontRef.current?.querySelector(`[data-open="${was}"]`))
     }, done ? restMs(done) : MOVE_MS)
   }
 
@@ -181,7 +195,11 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
     if (busy.current) return
     if (current === section) return close()
 
-    if (zone && ev) ripple(zone, ev)
+    if (zone && ev) {
+      setInitialEvent(undefined)
+      ripple(zone, ev)
+    }
+    if (embedded && NARROW.matches && !current) stageRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
     const side = SIDE[section]
 
     if (current) {
@@ -239,6 +257,42 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
     turnToRef.current = turnTo
   })
 
+  useEffect(() => {
+    if (!eventRequest || handledRequest.current === eventRequest || !ready || state.catalogLoading) return
+    if (state.catalogError || profileError) return
+    let timer: ReturnType<typeof setTimeout>
+    const showEvent = () => {
+      // Una selección durante un giro se atiende cuando termina la transición.
+      if (busy.current) { timer = setTimeout(showEvent, 100); return }
+      handledRequest.current = eventRequest
+      if (!state.catalog?.events.some(event => event.id === eventRequest.id)) {
+        notify('Este evento ya no está disponible.')
+        return
+      }
+      returnPoint.current = { y: window.scrollY, target: document.activeElement as HTMLElement | null }
+      setInitialEvent(eventRequest.id)
+      setEvTab('discover')
+      if (currentRef.current === 'events') renderPanel('events', 'switch')
+      else openRef.current('events')
+      stageRef.current?.scrollIntoView({ block: 'start', behavior: REDUCED ? 'instant' : 'smooth' })
+    }
+    showEvent()
+    return () => clearTimeout(timer)
+  }, [eventRequest, ready, state.catalogLoading, state.catalogError, state.catalog, profileError, notify])
+
+  useEffect(() => {
+    // Inicio y Explorar conservan la escena, pero cierran el panel activo.
+    if (!embedded || new URLSearchParams(location.search).has('event')) return
+    returnPoint.current = null
+    let timer: ReturnType<typeof setTimeout>
+    const closePanel = () => {
+      if (busy.current) { timer = setTimeout(closePanel, 100); return }
+      closeRef.current()
+    }
+    closePanel()
+    return () => clearTimeout(timer)
+  }, [embedded, location.key, location.search])
+
   /* ───────── Móvil: arrastrar la tarjeta ─────────
      El dedo lleva la misma transición que el clic: la tarjeta gira y se
      aparta, y el panel aparece. En el centro, arrastrarla a la izquierda
@@ -250,7 +304,7 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
     const mover = moverRef.current
     const card = cardRef.current
     const panelEl = panelRef.current
-    const credits = stageEl?.querySelector<HTMLElement>('.credits')
+    const credits = stageEl?.querySelector<HTMLElement>('.stage-summary, .credits')
     if (!stageEl || !mover || !card || !panelEl || !credits) return
 
     type Drag = {
@@ -399,7 +453,8 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
     const onClick = (ev: globalThis.MouseEvent) => {
       const target = ev.target as Element
       if (!currentRef.current || !target.isConnected) return
-      if (target.closest('.mover, .panel, .toast, .credits, .share, .sign-out, .map-access')) return
+      if (embedded && target.closest('.lp-table, .event-atlas')) return
+      if (target.closest('.mover, .panel, .toast, .credits, .share, .share-menu, .sign-out, .map-access, .site-header')) return
       closeRef.current()
     }
     // desde una ficha de evento u organización, Esc vuelve un paso atrás
@@ -414,7 +469,7 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
       document.removeEventListener('click', onClick)
       document.removeEventListener('keydown', onKey)
     }
-  }, [])
+  }, [embedded])
 
   /* ───────── Datos ───────── */
 
@@ -446,17 +501,17 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
     people: ['Personas', `Has coincidido con ${plural(people.length, 'persona', 'personas')}.`],
   }
 
-  const stageClass = ['stage', stage.open && 'open', stage.cardRight && 'card-right', stage.panelLeft && 'panel-left', stage.swapping && 'swapping']
+  const stageClass = ['stage', embedded && 'stage-embedded', stage.open && 'open', stage.cardRight && 'card-right', stage.panelLeft && 'panel-left', stage.swapping && 'swapping']
     .filter(Boolean).join(' ')
 
-  if (!ready) return <main className="stage" aria-busy="true" />
+  if (!ready) return <section className={embedded ? 'badge-loading' : 'stage'} role="status">Cargando tu acreditación…</section>
+  if (profileError) return <section className="badge-loading" role="alert">No se ha podido cargar tu acreditación. <button className="link" onClick={() => window.location.reload()}>Reintentar</button></section>
 
   return (
-    <main className={stageClass} ref={stageRef}>
-      {!sample && session && <SignOutButton />}
-      <Link className="map-access" to="/eventos" state={{ from: sample ? '/ejemplo' : '/acreditacion' }}>
-        Mapa y eventos ↗
-      </Link>
+    <section className={stageClass} ref={stageRef} aria-label="Tu acreditación">
+      {embedded && <div className="stage-summary" inert={stage.open} aria-hidden={stage.open}>{summary}</div>}
+      {!embedded && !sample && session && <SignOutButton />}
+      {!embedded && <Link className="map-access" to="/">← Inicio</Link>}
       <div className="mover" ref={moverRef}>
         <div className="tilt" ref={tiltRef}>
           <div className="card" ref={cardRef}>
@@ -484,7 +539,7 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
               <BioPanel me={state.me} onDraft={setDraftMe} onSave={saveBio} onCancel={() => close()} />
             )}
             {panel.section === 'events' && (
-              <EventsPanel state={state} toggle={toggle} bodyRef={bodyRef} tab={evTab} setTab={setEvTab} escRef={escRef} />
+              <EventsPanel initialEvent={initialEvent} state={state} toggle={toggle} bodyRef={bodyRef} tab={evTab} setTab={setEvTab} escRef={escRef} />
             )}
             {panel.section === 'people' && (
               <PeoplePanel state={state} bodyRef={bodyRef} tab={peopleTab} setTab={setPeopleTab} />
@@ -498,15 +553,15 @@ export function BadgeApp({ sample = false }: { sample?: boolean }) {
 
       <ShareMenu open={shareOpen} state={state} anchorRef={shareBtnRef} onClose={closeShare} />
 
-      <footer className="credits">
+      {!embedded && <footer className="credits">
         {!sample && session && <><Link to="/organizaciones">Organizaciones</Link><span aria-hidden="true"> · </span></>}
         {!sample && isAdmin && <><Link to="/admin">Administración</Link><span aria-hidden="true"> · </span></>}
         A side project by{' '}
         <a href="https://x.com/pedrodelunah" target="_blank" rel="noopener noreferrer">@pedrodelunah</a>,{' '}
         <a href="https://x.com/franms_dev" target="_blank" rel="noopener noreferrer">@franms_dev</a>
         {' '}and <a href="https://x.com/elashera" target="_blank" rel="noopener noreferrer">@elashera</a>
-      </footer>
-    </main>
+      </footer>}
+    </section>
   )
 }
 
