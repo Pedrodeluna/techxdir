@@ -150,6 +150,7 @@ export function Landing() {
         <a href="https://x.com/pedrodelunah" target="_blank" rel="noopener noreferrer">@pedrodelunah</a>,{' '}
         <a href="https://x.com/franms_dev" target="_blank" rel="noopener noreferrer">@franms_dev</a>
         {' '}y <a href="https://x.com/elashera" target="_blank" rel="noopener noreferrer">@elashera</a>
+        <span aria-hidden="true"> · </span><Link to="/privacidad">Privacidad</Link>
       </footer>
     </div>
   )

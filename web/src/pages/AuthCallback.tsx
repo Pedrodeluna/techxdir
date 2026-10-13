@@ -7,6 +7,12 @@ import './auth.css'
 
 /* Vuelta de X. Si falta el usuario de X, se pide aquí antes de entrar en la acreditación. */
 
+// ?next=/privacidad → vuelve ahí. Solo rutas propias: nada de "//otro.sitio" ni URLs completas.
+function nextPath() {
+  const next = new URLSearchParams(location.search).get('next') ?? ''
+  return /^\/(?!\/)[\w\-/#]*$/.test(next) ? next : '/'
+}
+
 type Step =
   | { kind: 'checking' }
   | { kind: 'complete'; name: string }
@@ -48,7 +54,7 @@ export function AuthCallback() {
     getProfile()
       .then(p => {
         if (!alive) return
-        if (p.handle) navigate('/', { replace: true })
+        if (p.handle || nextPath().startsWith('/privacidad')) navigate(nextPath(), { replace: true })
         else {
           setName(p.name)
           setStep({ kind: 'complete', name: p.name })
@@ -72,7 +78,7 @@ export function AuthCallback() {
     setError('')
     try {
       await updateProfile({ name: name.trim(), handle })
-      navigate('/', { replace: true })
+      navigate(nextPath(), { replace: true })
     } catch {
       setError('Ese usuario ya está en otra acreditación, o no hemos podido guardar. Prueba con otro.')
       setSaving(false)

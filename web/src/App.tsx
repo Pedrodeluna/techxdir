@@ -6,6 +6,7 @@ import { Auth } from './pages/Auth'
 import { AuthCallback } from './pages/AuthCallback'
 import { Landing } from './pages/Landing'
 import { Organizations } from './pages/Organizations'
+import { Privacy } from './pages/Privacy'
 import { Admin } from './pages/Admin'
 import { AdminsSection } from './pages/admin/AdminsSection'
 import { EventsSection } from './pages/admin/EventsSection'
@@ -22,6 +23,7 @@ export default function App() {
           <Route path="/eventos" element={<Navigate to="/#encuentros" replace />} />
           <Route path="/entrar" element={<Auth />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/privacidad" element={<Privacy />} />
           <Route path="/ejemplo" element={<BadgeApp sample />} />
           <Route path="/acreditacion" element={<RequireAuth><BadgeApp /></RequireAuth>} />
           <Route path="/organizaciones" element={<RequireAuth><Organizations /></RequireAuth>} />
