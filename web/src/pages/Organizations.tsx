@@ -5,6 +5,7 @@ import { SignOutButton } from '../lib/SignOutButton'
 import { errorText } from '../lib/dbError'
 import { isDemo, supabase } from '../lib/supabase'
 import type { OrgShape } from '../data/sample'
+import { SourceManager } from '../features/sources/SourceManager'
 import './organizations.css'
 
 type Org = { id: string; name: string; logo: { mark?: string; shape?: OrgShape } | string }
@@ -173,6 +174,10 @@ export function Organizations() {
                   </form>
                   <div className="org-manager-list"><span>Gestores</span>{people.map(person => <div key={person.profile_id}><span>{person.handle ? `@${person.handle}` : person.name || 'Sin usuario'}</span><button disabled={busy || people.length < 2} title={people.length < 2 ? 'Debe quedar al menos un gestor' : undefined} onClick={() => removeManager(org.id, person.profile_id)}>Quitar</button></div>)}</div>
                   <form onSubmit={event => addManager(event, org.id)}><label>Añadir gestor<input required value={addHandles[org.id] ?? ''} onChange={event => setAddHandles(previous => ({ ...previous, [org.id]: event.target.value }))} placeholder="@usuario" /></label><button disabled={busy}>Añadir</button></form>
+                  <div className="org-sources">
+                    <h4>Fuentes de eventos</h4>
+                    <SourceManager orgs={[org]} orgId={org.id} admin={false} busy={busy} run={change} />
+                  </div>
                 </div>}
               </article>
             )

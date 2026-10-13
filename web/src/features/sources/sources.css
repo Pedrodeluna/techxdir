@@ -1,0 +1,29 @@
+.src { display: grid; gap: 20px; }
+.src-add { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px 16px; align-items: end; }
+.src-add > label > span { display: block; margin-bottom: 8px; font: 500 10.5px/1 var(--mono); letter-spacing: .15em; text-transform: uppercase; color: var(--muted-text); }
+.src-add input[type='url'], .src-add select { width: 100%; padding: 10px 0; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--ink); font: inherit; }
+.src-add input[type='url']:focus-visible, .src-add select:focus-visible { outline: none; border-bottom-color: var(--ink); }
+.src-url { grid-column: 1 / -1; }
+.src-check { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.src-check > span { margin: 0 !important; font: inherit !important; letter-spacing: 0 !important; text-transform: none !important; color: var(--ink) !important; }
+.src-help { grid-column: 1 / -1; color: var(--muted-text); font-size: 12px; }
+.src-pill { padding: 11px 20px; border-radius: 99px; background: var(--ink); color: var(--card); font-weight: 500; }
+.src-pill:disabled { opacity: .35; cursor: not-allowed; }
+.src-empty { color: var(--muted-text); font-size: 14px; }
+.src-list { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
+.src-list > li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px 24px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+.src-list > li.is-off { opacity: .55; }
+.src-main { display: grid; gap: 4px; min-width: 0; }
+.src-main a { color: var(--ink); text-decoration: none; overflow-wrap: anywhere; }
+.src-main small { color: var(--muted-text); font-size: 12.5px; }
+.src-kind { justify-self: start; padding: 4px 8px; border-radius: 99px; box-shadow: inset 0 0 0 1px var(--line); font: 500 10px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; }
+.src-error { color: #b54020 !important; }
+.src-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
+.src-link { font: 500 13px var(--mono); color: var(--ink); text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 4px; }
+.src-link:hover { text-decoration-color: var(--ink); }
+.src-link:disabled { opacity: .4; cursor: not-allowed; }
+.src-danger { color: #b54020; }
+
+@media (max-width: 640px) {
+  .src-add { grid-template-columns: 1fr; }
+}

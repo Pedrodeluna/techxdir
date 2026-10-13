@@ -11,6 +11,8 @@ import { Admin } from './pages/Admin'
 import { AdminsSection } from './pages/admin/AdminsSection'
 import { EventsSection } from './pages/admin/EventsSection'
 import { OrgsSection } from './pages/admin/OrgsSection'
+import { SourcesSection } from './pages/admin/SourcesSection'
+import { SyncSection } from './pages/admin/SyncSection'
 import { Summary } from './pages/admin/Summary'
 import { UsersSection } from './pages/admin/UsersSection'
 
@@ -31,6 +33,8 @@ export default function App() {
             <Route index element={<Summary />} />
             <Route path="organizaciones" element={<OrgsSection />} />
             <Route path="eventos" element={<EventsSection />} />
+            <Route path="fuentes" element={<SourcesSection />} />
+            <Route path="sincronizacion" element={<SyncSection />} />
             <Route path="usuarios" element={<UsersSection />} />
             <Route path="administradores" element={<AdminsSection />} />
           </Route>

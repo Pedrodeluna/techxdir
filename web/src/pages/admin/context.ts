@@ -6,9 +6,17 @@ export type Org = { id: string; name: string; logo: OrgLogo }
 export type AdminEvent = {
   id: string; org_id: string; name: string; short: string; city: string
   starts_on: string; ends_on: string | null; url: string | null; kind: string; color: string
+  status?: 'draft' | 'published' | 'canceled' | 'merged'
+  external_kind?: 'luma' | 'meetup' | null
+  duplicate_of?: string | null
+  guest_count?: number | null
 }
 export type Person = { id: string; name: string; handle: string | null; member_no: number; created_at: string }
-export type Counts = { people: number; orgs: number; events: number; bans: number; admins: number }
+export type Counts = { people: number; orgs: number; events: number; bans: number; admins: number; review: number; suggestions: number }
+
+/** Lo que se puede editar a mano de un evento (las columnas con grant update). */
+export const editableEvent = ({ name, short, city, starts_on, ends_on, url, kind, color }: AdminEvent) =>
+  ({ name, short, city, starts_on, ends_on, url, kind, color })
 
 export interface AdminContextValue {
   me: string

@@ -69,3 +69,4 @@
   .org-mark { width: 42px; height: 42px; }
   .org-count { font-size: 10px; }
 }
+.org-sources { grid-column: 1 / -1; padding-top: 16px; border-top: 1px solid var(--line); }
