@@ -6,6 +6,9 @@ import { SAMPLE, type Me, type Org, type Person, type TechEvent } from '../../da
 export interface BadgeState {
   me: Me
   myEvents: string[]
+  /** Eventos donde Luma te ha visto y que aún no has confirmado ni descartado */
+  detected?: string[]
+  reviewDetected?: (ids: string[], accept: boolean) => Promise<boolean>
   /** Catálogo real con sesión; el ejemplo mantiene sus datos aislados. */
   catalog?: Catalog
   catalogLoading?: boolean
@@ -118,7 +121,7 @@ export function contacts(myEvents: string[], people: Person[] = PEOPLE, catalog?
 export function others(myEvents: string[], people: Person[] = PEOPLE, catalog?: Catalog): Contact[] {
   const matched = new Set(contacts(myEvents, people, catalog).map(p => p.id))
   return people
-    .filter(p => !matched.has(p.id))
+    .filter(p => !matched.has(p.id) && !p.shadow)
     .map(p => ({ ...p, shared: [] }))
     .sort((a, b) => b.events.length - a.events.length || a.name.localeCompare(b.name, 'es'))
 }

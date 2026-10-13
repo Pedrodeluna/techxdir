@@ -20,12 +20,13 @@ export function useCatalog(enabled = true) {
       try {
         if (!supabase) throw new Error('No catalog configured')
         const [events, orgs] = await Promise.all([
-          supabase.from('events').select('id,org_id,name,short,city,starts_on,ends_on,url,kind,color').order('starts_on').abortSignal(controller.signal),
+          supabase.from('events').select('id,org_id,name,short,city,starts_on,ends_on,url,kind,color,guest_count')
+            .eq('status', 'published').order('starts_on').abortSignal(controller.signal),
           supabase.from('orgs').select('id,name,logo').abortSignal(controller.signal),
         ])
         if (events.error || orgs.error) throw events.error || orgs.error
         if (alive) setCatalog({
-          events: events.data.map(e => ({ id: e.id, org: e.org_id, name: e.name, short: e.short, city: e.city, date: e.starts_on, end: e.ends_on, url: e.url, kind: e.kind, color: e.color })),
+          events: events.data.map(e => ({ id: e.id, org: e.org_id, name: e.name, short: e.short, city: e.city, date: e.starts_on, end: e.ends_on, url: e.url, kind: e.kind, color: e.color, guestCount: e.guest_count })),
           orgs: orgs.data,
         })
       } catch { if (alive) setError(true) }
