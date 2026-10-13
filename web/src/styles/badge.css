@@ -666,6 +666,48 @@
 
 /* ───────── Pantallas estrechas: la acreditación sube y el panel ocupa abajo ───────── */
 
+/* ───────── Eventos detectados en Luma ───────── */
+
+.detected {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 45;
+  width: min(380px, calc(100vw - 32px));
+  max-height: min(70dvh, 520px);
+  overflow: auto;
+  padding: 18px 18px 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 18px 50px rgba(17, 17, 19, .16);
+}
+.detected > strong { display: block; font-size: 16px; }
+.detected > p { margin: 6px 0 12px; color: var(--muted-text); font-size: 13px; line-height: 1.45; }
+.detected ul { margin: 0; padding: 0; list-style: none; }
+.detected li {
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  gap: 4px 10px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.detected-date { font-size: 12px; font-weight: 600; text-transform: uppercase; color: var(--muted-text); }
+.detected-name { font-size: 14px; font-weight: 600; }
+.detected-name small { display: block; font-weight: 400; color: var(--muted-text); }
+.detected-actions { grid-column: 2; display: flex; align-items: center; gap: 12px; }
+.detected-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.detected-foot .link:only-child { margin-left: auto; }
+
+.tag-luma { margin-left: auto; white-space: nowrap; }
+.att-more { font-style: normal; }
+.pv-shadow { color: var(--muted-text); }
+
+@media (max-width: 899px) {
+  .detected { right: 16px; bottom: 16px; }
+}
+
 @media (max-width: 899px) {
   :root {
     --w: min(400px, calc(100vw - 32px), calc((100dvh - 176px) / 1.5));

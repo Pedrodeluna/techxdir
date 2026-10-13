@@ -5,7 +5,8 @@ import { xProfilePhoto } from './lib/xProfilePhoto'
 
 /* Piezas pequeñas que se repiten en la acreditación y en el panel */
 
-export function Avatar({ name }: { name: string }) {
+export function Avatar({ name, photo }: { name: string; photo?: string | null }) {
+  if (photo) return <span className="av av-photo" aria-hidden="true"><img src={photo} alt="" loading="lazy" referrerPolicy="no-referrer" /></span>
   return (
     <span className="av" style={{ '--l': `${avatarLightness(name)}%` } as CSSProperties} aria-hidden="true">
       {initials(name)}
