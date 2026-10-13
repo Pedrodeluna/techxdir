@@ -1109,10 +1109,10 @@ do $$ begin
 end $$;
 
 reset role;
+update auth.identities set identity_data = '{"user_name":"ti_renamed"}'
+where user_id = '00000000-0000-4000-8000-000000000092';
 set local role service_role;
 do $$ begin
-  update auth.identities set identity_data = '{"user_name":"ti_renamed"}'
-  where user_id = '00000000-0000-4000-8000-000000000092';
   insert into public.attendances (profile_id, event_id, source, status)
   values ('00000000-0000-4000-8000-000000000092', 'test-ingest-taller-26', 'luma', 'pending');
   perform public.link_external_people(null, null);
