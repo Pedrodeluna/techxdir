@@ -1,6 +1,6 @@
 {
   "tasks": {
-    "test": "deno test profile/"
+    "test": "deno test profile/ _shared/"
   },
   "lint": { "rules": { "tags": ["recommended"] } },
   "fmt": { "semiColons": false, "singleQuote": true, "lineWidth": 120 }
