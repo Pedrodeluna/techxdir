@@ -179,6 +179,7 @@ Run these from the repository root.
 | `npm run supabase:functions` | Serve the edge functions with hot reload. |
 | `cd supabase/functions && deno task test` | Run the edge function tests (`profile/` and `_shared/`). |
 | `psql "$DB_URL" -f scripts/seed-local-ingest.sql` | Load fake demo data for the import (a source, two events, three guests, one suggestion). Idempotent. Locally: `docker exec -i supabase_db_techxdir psql -U postgres -d postgres -v ON_ERROR_STOP=1 < scripts/seed-local-ingest.sql`. |
+| `node scripts/luma-mock.mjs` | Serve fake Luma data on port 55399 so add-by-URL, source sync and guest reads work without calling Luma. Set `LUMA_API_BASE=http://host.docker.internal:55399` in `supabase/functions/.env` and restart the functions. It knows `luma.com/demo-ia-madrid`, `luma.com/demo-suggested` and `luma.com/demo-hackathon-agentes`. |
 | `cd web && node --test tests/*.test.ts` | Run the frontend and Vercel function tests. |
 
 ## Routes

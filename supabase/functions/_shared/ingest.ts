@@ -11,6 +11,9 @@ export const deadlineFrom = (start = Date.now()) => start + BUDGET_MS
 
 /** Every function shares one pace for Luma through public.luma_slot(). */
 export function useSharedLumaPace(db: SupabaseClient) {
+  // Local only: LUMA_API_BASE points at scripts/luma-mock.mjs.
+  const base = Deno.env.get('LUMA_API_BASE')
+  if (base) lumaConfig.base = base
   lumaConfig.throttle = async () => {
     const { error } = await db.rpc('luma_slot', { gap_ms: lumaConfig.gapMs })
     if (error) throw new Error(`luma_slot: ${error.message}`)
