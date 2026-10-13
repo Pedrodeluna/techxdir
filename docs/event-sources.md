@@ -65,3 +65,52 @@ El catálogo real viene de Supabase tanto en la portada como en las fichas, recu
 - `npm run build` y `npm run lint`.
 - Consulta anónima a Supabase local y respuesta HTTP 200 del módulo del mapa en Vite.
 - Revisión visual pendiente: el entorno no expone navegador automatizable ni ventanas de Chrome/Safari (`cgWindowNotFound`).
+
+## Calendarios de Luma
+
+Comprobación: 13 de octubre de 2026, con `api.lu.ma/calendar/get-items`. Las cifras son eventos en España: futuros / pasados (con "+", la página de 50 tenía más). Es la lista inicial de fuentes para la ingesta automática (`docs/spec-auto-ingest.md`).
+
+### Comunidades españolas
+
+| Calendario | Ciudad | Futuros | Pasados |
+| --- | --- | --- | --- |
+| https://luma.com/tetuanvalley | Madrid | 5 | 40+ |
+| https://luma.com/madrid-tech-brunch | Madrid | 1 | 28 |
+| https://luma.com/sobremesatech | Madrid | 1 | 21 |
+| https://luma.com/MadridAIBuilders | Madrid | 1 | 13 |
+| https://luma.com/spacexai-madrid | Madrid | 0 | 7 |
+| https://luma.com/devmad-socials | Madrid | 1 | 6 |
+| https://luma.com/madai | Madrid | 1 | 5 |
+| https://luma.com/cto-circle | Madrid | 2 | 7 |
+| https://luma.com/helmcode | Madrid | 0 | 1 |
+| https://luma.com/alumni.etsit.upm | Madrid | 3 | 2 |
+| https://luma.com/es.uxpa | Madrid | 1 | 3 |
+| https://luma.com/hitl-madrid | Madrid | 1 | 0 |
+| https://luma.com/the-tech-nation | Barcelona | 2 | 31 |
+| https://luma.com/Buzoku | Barcelona | 6 | 17 |
+| https://luma.com/aisummitbarcelona | Barcelona | 0 | 41+ |
+| https://luma.com/ATIHxBCN | Barcelona | 1 | 8 |
+| https://luma.com/crea | Barcelona | 1 | 8 |
+| https://luma.com/ai-safety-bcn | Barcelona | 3 | 7 |
+| https://luma.com/barcelonacybersecurity | Barcelona | 1 | 6 |
+| https://luma.com/aibarcelona | Barcelona | 1 | 4 |
+| https://luma.com/lewagonspain | Barcelona | 4 | 3 |
+| https://luma.com/spacexai-barcelona | Barcelona | 0 | 3 |
+| https://luma.com/bcnrust | Barcelona | 1 | 0 |
+| https://luma.com/masia | Barcelona | 1 | 3 |
+| https://luma.com/deepdivelectures | Barcelona | 2 | 2 |
+| https://luma.com/codeway | Barcelona | 2 | 0 |
+| https://luma.com/spainclouds | Madrid y Barcelona | 2 | 7 |
+| https://luma.com/ghspain | Varias | 3 | 7 |
+| https://luma.com/calendar/cal-Xn9E7cBORCIEdMP (Startup Valencia) | Valencia | 0 | 11+ |
+
+### Calendarios globales (importar con `country_filter='ES'`)
+
+| Calendario | Futuros en España / total |
+| --- | --- |
+| https://luma.com/claudecommunity | 1 / 41+ |
+| https://luma.com/n8n-events | 3 / 31+ |
+| https://luma.com/codex-community | 1 / 50+ |
+| https://luma.com/clickhouse-events | 1 / 20 |
+
+Kernel Panic (`luma.com/p50cydsf`) pertenece a `helmcode`, pero no aparece en el listado del calendario. Los eventos no listados solo entran por URL suelta. Málaga, Bilbao y Sevilla no tienen calendarios propios relevantes en Luma; ahí se dependerá de Meetup.
