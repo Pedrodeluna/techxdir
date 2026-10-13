@@ -700,7 +700,7 @@
 .detected-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
 .detected-foot .link:only-child { margin-left: auto; }
 
-.tag-luma { margin-left: auto; white-space: nowrap; }
+.tag-luma { white-space: nowrap; }
 .att-more { font-style: normal; }
 .pv-shadow { color: var(--muted-text); }
 
@@ -840,6 +840,7 @@
 .att-you .av { background: var(--ink); color: var(--card); }
 /* asistente que abre su perfil */
 .att-item .att-open { grid-template-columns: auto 1fr auto; width: 100%; text-align: left; }
+.att-item .att-open:has(.tag-luma) { grid-template-columns: auto 1fr auto auto; }
 .att-open:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 2px; border-radius: 8px; }
 .att-open:hover .p-chev { translate: 4px 0; color: var(--ink); }
 .av-photo { overflow: hidden; }

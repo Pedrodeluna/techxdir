@@ -41,7 +41,7 @@ export function SourceManager({ orgs, orgId, admin, busy, run }: {
       const result = await addUrl({ url: value, org_id: target, country_filter: onlySpain ? 'ES' : null })
       setUrl('')
       if (result.kind === 'source' && result.stats.errors.length) throw new Error(`Fuente añadida, pero la primera lectura falló: ${result.stats.errors[0]}`)
-    }, 'Añadido. Los eventos nuevos ya están importados.')
+    }, 'Añadido. Lo importado ya está en Eventos; un evento suelto entra como borrador.')
   }
 
   return (

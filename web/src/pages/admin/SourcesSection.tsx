@@ -17,6 +17,8 @@ export function SourcesSection() {
   const [suggestions, setSuggestions] = useState<Suggestion[] | null>(null)
   const [targets, setTargets] = useState<Record<string, string>>({})
   const [loadError, setLoadError] = useState('')
+  // Sube tras cada cambio para que la lista de fuentes recoja las aceptadas aquí.
+  const [round, setRound] = useState(0)
 
   const reload = useCallback(async () => {
     const client = supabase
@@ -34,7 +36,7 @@ export function SourcesSection() {
 
   useEffect(() => { void Promise.resolve().then(reload).catch(err => setLoadError(errorText(err))) }, [reload])
 
-  const change = (action: () => Promise<void>, success: string) => run(async () => { await action(); await reload() }, success)
+  const change = (action: () => Promise<void>, success: string) => run(async () => { await action(); await reload(); setRound(r => r + 1) }, success)
   // '' = crear una organización con el nombre del calendario
   const targetOf = (s: Suggestion) => targets[s.id] ?? (s.kind === 'luma_calendar' ? '' : orgs[0]?.id ?? '')
 
@@ -42,7 +44,7 @@ export function SourcesSection() {
     <>
       <SectionHead title="Fuentes" />
       {loadError && <p className="adm-error" role="alert">{loadError}</p>}
-      {orgs.length > 0 && <SourceManager orgs={orgs} admin busy={busy} run={change} />}
+      {orgs.length > 0 && <SourceManager key={round} orgs={orgs} admin busy={busy} run={change} />}
 
       <h2 className="adm-subhead">Sugerencias del descubrimiento</h2>
       <p className="adm-note">Calendarios y eventos de Luma en Madrid y Barcelona que aún no seguimos. Nada se importa hasta que lo aceptas.</p>
@@ -54,7 +56,7 @@ export function SourcesSection() {
                 <span className="adm-date">{s.kind === 'luma_calendar' ? 'Calendario' : s.starts_on ? formatDate(s.starts_on) : 'Evento'}</span>
                 <span className="adm-row-main">
                   <strong><a href={s.url} target="_blank" rel="noopener noreferrer">{s.name}</a></strong>
-                  <small>{s.city ?? 'Sin ciudad'} · {s.found_via.replace('discover:', 'visto en ')}</small>
+                  <small>{s.city ?? 'Sin ciudad'} · {s.found_via.startsWith('discover:') ? 'descubrimiento de Luma' : s.found_via}</small>
                 </span>
                 <span className="adm-suggest-actions">
                   <select aria-label="Organización" value={targetOf(s)} onChange={event => setTargets(t => ({ ...t, [s.id]: event.target.value }))}>

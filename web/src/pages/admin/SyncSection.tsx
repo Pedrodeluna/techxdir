@@ -9,12 +9,20 @@ type Run = { id: number; job: string; started_at: string; finished_at: string | 
 type Coverage = { synced_events: number; guest_total: number; with_handle: number; coverage: number | null }
 type Settings = Record<'guest_ingest_enabled' | 'luma_full_list_enabled', boolean>
 
+const timeFormat = new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' })
+
 const JOBS: Record<string, string> = { sources: 'Fuentes', discover: 'Descubrimiento', guests: 'Asistentes', retention: 'Retención' }
+
+const STATS: Record<string, string> = {
+  sources: 'fuentes', created: 'nuevos', updated: 'actualizados', canceled: 'cancelados', pending: 'pendientes',
+  partial: 'parciales', listed: 'listados', suggested: 'sugerencias', events: 'eventos', stored: 'invitados',
+  linked: 'cruzados', frozen: 'congelados', people_deleted: 'personas borradas', runs_deleted: 'ejecuciones borradas',
+}
 
 function summary(stats: Record<string, unknown>) {
   return Object.entries(stats)
-    .filter(([, value]) => typeof value === 'number')
-    .map(([key, value]) => `${key} ${value}`).join(' · ')
+    .filter(([, value]) => typeof value === 'number' && value > 0)
+    .map(([key, value]) => `${value} ${STATS[key] ?? key}`).join(' · ')
 }
 
 export function SyncSection() {
@@ -72,7 +80,7 @@ export function SyncSection() {
           {coverage && (
             <p className="adm-coverage">
               <strong>{coverage.coverage === null ? '–' : `${Math.round(coverage.coverage * 100)} %`}</strong>
-              <span>{coverage.with_handle} con X de {coverage.guest_total} asistentes en {coverage.synced_events} eventos</span>
+              <span>{coverage.with_handle} con X de {coverage.guest_total} asistentes en {coverage.synced_events} {coverage.synced_events === 1 ? 'evento' : 'eventos'}</span>
             </p>
           )}
           {settings && (
@@ -90,7 +98,7 @@ export function SyncSection() {
           {runs.map(r => (
             <li key={r.id}>
               <div className="adm-row adm-row-static">
-                <time className="adm-date" dateTime={r.started_at}>{formatDate(r.started_at)} {r.started_at.slice(11, 16)}</time>
+                <time className="adm-date" dateTime={r.started_at}>{formatDate(r.started_at)} {timeFormat.format(new Date(r.started_at))}</time>
                 <span className="adm-row-main">
                   <strong>{JOBS[r.job] ?? r.job}</strong>
                   <small>{summary(r.stats) || 'sin cambios'}</small>
