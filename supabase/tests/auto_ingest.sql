@@ -2,6 +2,10 @@
 -- All fixtures and changes roll back.
 begin;
 
+-- The coverage check counts only what this test adds on top of existing data.
+select set_config('test.synced_base', (select count(*)::text from public.events
+  where external_kind = 'luma' and guests_synced_at is not null), true);
+
 insert into auth.users (id, raw_user_meta_data) values
   ('00000000-0000-4000-8000-000000000091', '{"name":"Ingest admin","user_name":"ti_admin"}'),
   ('00000000-0000-4000-8000-000000000092', '{"name":"Ingest guest","user_name":"ti_guest"}'),
@@ -265,7 +269,7 @@ do $$ begin
       and profile_id = '00000000-0000-4000-8000-000000000092') <> 'dismissed' then
     raise exception 'merging brought a dismissed event back';
   end if;
-  if (select synced_events from public.ingest_coverage()) <> 1 then
+  if (select synced_events from public.ingest_coverage()) <> current_setting('test.synced_base')::int + 1 then
     raise exception 'coverage does not count the synced event';
   end if;
 end $$;
