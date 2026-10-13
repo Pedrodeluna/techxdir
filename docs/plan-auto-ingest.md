@@ -13,7 +13,7 @@ Este plan aplica `docs/spec-auto-ingest.md`. Todo se hace en la rama `feat/auto-
 | 5 | `feat(db): programación con pg_cron` | `supabase/migrations/20261013130000_ingest_cron.sql` |
 | 6 | `feat(web): asistencias confirmadas, pendientes y personas sombra` | `web/src/data/sample.ts`, `web/src/features/events/catalog.ts`, `web/src/features/badge/{people.ts,model.ts,useBadgeStore.ts}`, `scripts/test-people.mjs` |
 | 7 | `feat(web): aviso de eventos detectados y sombras en el evento` | `web/src/features/badge/DetectedEvents.tsx`, `BadgeApp.tsx`, `panels/EventsPanel.tsx`, `panels/PeoplePanel.tsx`, `web/src/styles/badge.css` |
-| 8 | `feat(web): página de privacidad y "Ocultarme"` | `web/src/pages/Privacy.tsx`, `web/src/pages/privacy.css`, `web/src/pages/AuthCallback.tsx`, `web/src/App.tsx`, `web/src/pages/Landing.tsx`, `BadgeApp.tsx` |
+| 8 | `feat(web): página de privacidad y "Ocultarme"` | `web/src/pages/Privacy.tsx`, `web/src/pages/privacy.css`, `web/src/pages/AuthCallback.tsx`, `web/src/App.tsx`, `web/src/pages/Landing.tsx`, `BadgeApp.tsx`, `web/.env.example` |
 | 9 | `feat(admin): fuentes, sincronización y revisión de eventos importados` | `web/src/features/sources/{api.ts,SourceManager.tsx,sources.css}`, `web/src/pages/admin/{SourcesSection,SyncSection,EventsSection}.tsx`, `context.ts`, `Admin.tsx`, `App.tsx`, `Organizations.tsx` |
 | 10 | `docs: README y datos locales de la ingesta` | `README.md`, `scripts/seed-local-ingest.sql` |
 
@@ -21,7 +21,7 @@ Este plan aplica `docs/spec-auto-ingest.md`. Todo se hace en la rama `feat/auto-
 
 - **Estado `merged`.** "Fusionar" no borra el duplicado. Lo deja en `status='merged'`. Si se borrara, la siguiente sincronización de Meetup lo volvería a crear. Un evento `merged` no se muestra y la sincronización no lo toca.
 - **`event_guests.is_host`.** Sirve para asignar `role='organizer'` al confirmar un host que gestiona la organización (spec 8.4).
-- **Etiqueta de las sombras: "Visto en Luma".** Una sombra puede ser alguien sin cuenta o un usuario que todavía no ha confirmado. "No está en la app" sería falso en el segundo caso.
+- **Etiqueta de las sombras: "Visto en Luma".** Una sombra es un invitado de Luma que no está vinculado a ninguna cuenta. Su X puede estar en techxdir con otro nombre o sin verificar, así que "No está en la app" no siempre sería cierto. Los invitados vinculados a un usuario no salen como sombra (ver la nota de `event_shadows` en el Paso 1).
 - **"¿Eres tú?"** Solo ve sombras quien tiene sesión, y su propia sombra se filtra (`is_me`). Por eso el enlace lleva a `/privacidad#ocultarme`. El cruce al entrar con X ya es automático (`claim_detected_attendances`).
 - **Retención.** Es una función SQL (`run_retention()`) que lanza `pg_cron` directamente, no una Edge Function. No necesita red.
 - **Presupuesto de tiempo.** Las Edge Functions tienen un límite de tiempo de ejecución. Por eso cada ejecución procesa lo que cabe en 110 s y deja el resto para la siguiente:
@@ -138,7 +138,8 @@ create table public.app_settings (
 );
 insert into public.app_settings (key, value) values
   ('guest_ingest_enabled', 'true'::jsonb),
-  ('luma_full_list_enabled', 'false'::jsonb);
+  ('luma_full_list_enabled', 'false'::jsonb),
+  ('luma_last_request', to_jsonb('2000-01-01T00:00:00Z'::text)); -- shared pace of every call to Luma
 
 -- ───────── events ─────────
 
@@ -153,6 +154,7 @@ alter table public.events
   add column guest_count      integer check (guest_count >= 0), -- Luma total, guests without a handle included
   add column guests_synced_at timestamptz,
   add column guests_frozen    boolean not null default false,
+  add column synced_at        timestamptz,       -- last time the importer read this event
   add column duplicate_of     text references public.events (id) on delete set null,
   add constraint events_external_pair check ((external_kind is null) = (external_id is null));
 create unique index events_external_key on public.events (external_kind, external_id)
@@ -210,6 +212,16 @@ create policy "confirmed attendance is visible to signed-in people" on public.at
 -- Source and status are only set by the functions below.
 revoke insert on public.attendances from anon, authenticated;
 grant insert (profile_id, event_id, role) on public.attendances to authenticated;
+
+-- Deleting a row would let the next sync bring a dismissed or detected event
+-- back. People delete only what they added by hand (the badge goes through
+-- set_attendance); managers never remove a dismissal.
+drop policy "people unmark their own attendance" on public.attendances;
+create policy "people unmark their own attendance" on public.attendances
+  for delete to authenticated using ((select auth.uid()) = profile_id and source = 'manual');
+drop policy "managers remove attendance" on public.attendances;
+create policy "managers remove attendance" on public.attendances
+  for delete to authenticated using ((select public.manages_event(event_id)) and status <> 'dismissed');
 
 -- An organizer is an organizer while their attendance is confirmed.
 create or replace function public.organizes_event(event text) returns boolean
@@ -292,11 +304,27 @@ $$;
 
 -- Links Luma guests to the users with the same verified handle and creates
 -- their pending attendance. Manual and dismissed attendance is kept.
+-- A link whose handle no longer matches (the Luma or the X handle changed)
+-- is dropped first, with the pending attendance it produced.
 create function public.link_external_people(only_profile uuid default null, only_event text default null)
 returns integer
 language plpgsql security definer set search_path = '' as $$
 declare added integer;
 begin
+  update public.external_people p set profile_id = null, updated_at = now()
+  where p.profile_id is not null
+    and (only_profile is null or p.profile_id = only_profile)
+    and p.handle is distinct from public.verified_handle(p.profile_id);
+
+  delete from public.attendances a
+  where a.source = 'luma' and a.status = 'pending'
+    and (only_profile is null or a.profile_id = only_profile)
+    and not exists (
+      select 1 from public.event_guests g
+      join public.external_people p on p.id = g.person_id
+      where g.event_id = a.event_id and p.profile_id = a.profile_id
+    );
+
   update public.external_people p set profile_id = v.user_id, updated_at = now()
   from (
     select distinct on (lower(coalesce(i.identity_data ->> 'user_name', i.identity_data ->> 'preferred_username')))
@@ -403,16 +431,19 @@ begin
 end;
 $$;
 
--- Luma guests without confirmed or dismissed attendance, for signed-in
--- people only. The public badge pages never call this.
+-- Luma guests who are not users, for signed-in people only. The public
+-- badge pages never call this. A guest linked to a user never shows: their
+-- detected attendance is private until they confirm it, and then they appear
+-- as themselves. The caller also gets their own pending rows (is_me).
 create function public.event_shadows()
 returns table (event_id text, person_id uuid, handle text, name text, avatar_url text, is_me boolean)
 language sql stable security definer set search_path = '' as $$
-  select g.event_id, p.id, p.handle, p.name, p.avatar_url, coalesce(p.profile_id = (select auth.uid()), false)
+  select g.event_id, p.id, p.handle, p.name, p.avatar_url, p.profile_id is not null
   from public.event_guests g
   join public.external_people p on p.id = g.person_id
   join public.events e on e.id = g.event_id and e.status = 'published'
   where (select auth.uid()) is not null
+    and (p.profile_id is null or p.profile_id = (select auth.uid()))
     and not exists (
       select 1 from public.attendances a
       where a.profile_id = p.profile_id and a.event_id = g.event_id and a.status in ('confirmed', 'dismissed')
@@ -421,13 +452,18 @@ language sql stable security definer set search_path = '' as $$
   order by g.event_id, p.id;
 $$;
 
--- "Ocultarme": needs a verified X handle. Suppresses it for good, deletes
--- what was imported about it and, if asked, the account too.
-create function public.hide_me(delete_account boolean default false) returns void
+-- "Ocultarme": needs a verified X handle. Suppresses it for good and deletes
+-- what was imported about it. delete_account: true deletes the account,
+-- false keeps it, null (the default) deletes it only when it was created in
+-- the last 30 minutes and has nothing of its own yet, which is the account
+-- the X sign-in of /privacidad created just to prove the handle.
+-- Returns whether the account was deleted.
+create function public.hide_me(delete_account boolean default null) returns boolean
 language plpgsql security definer set search_path = '' as $$
 declare
   me uuid := (select auth.uid());
   h text := public.verified_handle((select auth.uid()));
+  drop_it boolean := delete_account;
 begin
   if me is null or h is null or h !~ '^[a-z0-9_]{1,15}$' then
     raise exception 'sign in with X to hide your handle' using errcode = '42501';
@@ -435,16 +471,24 @@ begin
   insert into public.suppressed_handles (handle) values (h) on conflict do nothing;
   delete from public.attendances a where a.profile_id = me and a.source = 'luma' and a.status <> 'confirmed';
   delete from public.external_people p where p.handle = h or p.profile_id = me;
-  if delete_account then
+  if drop_it is null then
+    drop_it := exists (select 1 from auth.users u where u.id = me and u.created_at > now() - interval '30 minutes')
+      and not exists (select 1 from public.attendances a where a.profile_id = me)
+      and not exists (select 1 from public.org_managers m where m.profile_id = me)
+      and not exists (select 1 from public.app_admins x where x.profile_id = me);
+  end if;
+  if drop_it then
     delete from auth.users u where u.id = me;
   end if;
+  return drop_it;
 end;
 $$;
 
 -- ───────── Admin review ─────────
 
--- Moves attendance and guests of a duplicate to the main event. The best
--- status wins: confirmed, then pending, then dismissed.
+-- Moves attendance and guests of a duplicate to the main event. Confirmed
+-- wins; otherwise a dismissal wins over a detection, so nothing the person
+-- already said no to comes back.
 create function public.merge_events(duplicate text, main text) returns void
 language plpgsql security definer set search_path = '' as $$
 begin
@@ -464,8 +508,8 @@ begin
   on conflict (profile_id, event_id) do update set
     status = case
       when a.status = 'confirmed' or excluded.status = 'confirmed' then 'confirmed'
-      when a.status = 'pending' or excluded.status = 'pending' then 'pending'
-      else 'dismissed'
+      when a.status = 'dismissed' or excluded.status = 'dismissed' then 'dismissed'
+      else 'pending'
     end,
     role = case when a.role = 'organizer' or excluded.role = 'organizer' then 'organizer' else 'attendee' end;
   delete from public.attendances d where d.event_id = duplicate;
@@ -505,11 +549,18 @@ $$;
 -- Inserts or updates one imported event by (external_kind, external_id).
 -- payload: external_kind, external_id, org_id, source_id, id_base, name,
 -- short, starts_at, ends_at, url, city, country, guest_count, canceled.
+-- city: a key with null means "there is a place but it is not a known
+-- Spanish city"; no key means the feed says nothing about the place.
+-- An event of another organization is never touched: the caller may only
+-- be allowed to write to org_id.
 create function public.ingest_event(payload jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare
   v_kind     text := payload ->> 'external_kind';
   v_ext      text := payload ->> 'external_id';
+  v_org      text := payload ->> 'org_id';
+  v_abroad   boolean;
+  v_place_ok boolean;
   v_name     text := left(btrim(payload ->> 'name'), 120);
   v_starts   timestamptz := (payload ->> 'starts_at')::timestamptz;
   v_ends     timestamptz := nullif(payload ->> 'ends_at', '')::timestamptz;
@@ -530,9 +581,10 @@ declare
   v_n        integer := 1;
   v_changed  integer;
 begin
-  if v_kind is null or v_ext is null or coalesce(v_name, '') = '' or v_starts is null then
-    raise exception 'ingest_event needs external_kind, external_id, name and starts_at' using errcode = '22023';
+  if v_kind is null or v_ext is null or v_org is null or coalesce(v_name, '') = '' or v_starts is null then
+    raise exception 'ingest_event needs external_kind, external_id, org_id, name and starts_at' using errcode = '22023';
   end if;
+  v_abroad := coalesce(v_country, 'ES') <> 'ES';
   v_from := (v_starts at time zone 'Europe/Madrid')::date;
   v_to := (v_ends at time zone 'Europe/Madrid')::date;
   if v_to is not null and v_to <= v_from then
@@ -541,13 +593,21 @@ begin
 
   select * into v_found from public.events e where e.external_kind = v_kind and e.external_id = v_ext;
   if found then
+    if v_found.org_id <> v_org then
+      return jsonb_build_object('id', v_found.id, 'action', 'skipped', 'status', v_found.status, 'reason', 'other_org');
+    end if;
     if v_found.status = 'merged' then
       return jsonb_build_object('id', v_found.id, 'action', 'skipped', 'status', 'merged');
     end if;
+    -- An unresolved city keeps the stored one (it may have been fixed by
+    -- hand) but is not enough to publish again a canceled event.
+    v_place_ok := not v_abroad and coalesce(v_city, nullif(v_found.city, '')) is not null
+      and not (payload ? 'city' and v_city is null);
     v_status := case
       when v_canceled then 'canceled'
+      when v_found.status = 'published' and v_abroad then 'draft'   -- moved out of Spain
       when v_found.status = 'canceled' then
-        case when v_found.source_id is not null and v_found.duplicate_of is null and coalesce(v_city, v_found.city) <> ''
+        case when v_found.source_id is not null and v_found.duplicate_of is null and v_place_ok
           then 'published' else 'draft' end
       else v_found.status
     end;
@@ -562,11 +622,14 @@ begin
           (v_name, v_starts, v_ends, v_from, v_to, coalesce(v_url, e.url), coalesce(v_city, e.city),
            coalesce(v_source, e.source_id), coalesce(v_guests, e.guest_count), v_status);
     get diagnostics v_changed = row_count;
+    update public.events e set synced_at = now() where e.id = v_found.id;
     return jsonb_build_object('id', v_found.id, 'action', case when v_changed > 0 then 'updated' else 'unchanged' end,
       'status', v_status);
   end if;
 
-  -- Possible duplicate: same day, same city, similar name. Luma wins over Meetup.
+  -- Possible duplicate: same day, same city, similar name. Luma wins over a
+  -- Meetup copy of the same organization; across organizations the newcomer
+  -- waits as a draft and the existing event is left alone.
   if v_city is not null then
     select d.* into v_twin from public.events d
     where d.starts_on = v_from and lower(d.city) = lower(v_city)
@@ -575,13 +638,15 @@ begin
     order by extensions.similarity(lower(d.name), lower(v_name)) desc
     limit 1;
   end if;
-  if v_twin.id is not null and not (v_kind = 'luma' and v_twin.external_kind is not distinct from 'meetup') then
+  if v_twin.id is not null
+    and not (v_kind = 'luma' and v_twin.external_kind is not distinct from 'meetup' and v_twin.org_id = v_org)
+  then
     v_dup := v_twin.id;
   end if;
 
   v_status := case
     when v_canceled then 'canceled'
-    when v_source is null or v_city is null or coalesce(v_country, 'ES') <> 'ES' or v_dup is not null then 'draft'
+    when v_source is null or v_city is null or v_abroad or v_dup is not null then 'draft'
     else 'published'
   end;
 
@@ -596,25 +661,26 @@ begin
   end loop;
 
   insert into public.events (id, org_id, name, short, city, starts_on, ends_on, url, kind, color,
-    source_id, external_kind, external_id, status, starts_at, ends_at, guest_count, duplicate_of)
+    source_id, external_kind, external_id, status, starts_at, ends_at, guest_count, duplicate_of, synced_at)
   values (
-    v_id, payload ->> 'org_id', v_name,
+    v_id, v_org, v_name,
     left(coalesce(nullif(btrim(payload ->> 'short'), ''), v_name), 30),
     coalesce(v_city, ''), v_from, v_to, v_url, 'Meetup',
-    coalesce((select x.color from public.events x where x.org_id = payload ->> 'org_id' order by x.starts_on desc limit 1), '#111113'),
-    v_source, v_kind, v_ext, v_status, v_starts, v_ends, v_guests, v_dup
+    coalesce((select x.color from public.events x where x.org_id = v_org order by x.starts_on desc limit 1), '#111113'),
+    v_source, v_kind, v_ext, v_status, v_starts, v_ends, v_guests, v_dup, now()
   );
 
   if v_twin.id is not null and v_dup is null then
     update public.events set status = 'draft', duplicate_of = v_id
-    where id = v_twin.id and status in ('draft', 'published');
+    where id = v_twin.id and org_id = v_org and status in ('draft', 'published');
   end if;
 
   return jsonb_build_object('id', v_id, 'action', 'created', 'status', v_status, 'duplicate_of', v_dup);
 end;
 $$;
 
--- Events of a source that are no longer listed before they happen.
+-- Events of a source that are no longer listed before they happen. Only
+-- called after a complete read of the source (an empty one included).
 create function public.cancel_missing_events(target_source uuid, seen text[]) returns integer
 language plpgsql security definer set search_path = '' as $$
 declare changed integer;
@@ -672,6 +738,25 @@ begin
 end;
 $$;
 
+-- One slot to call Luma. The row lock makes every caller (cron runs and
+-- manual syncs at the same time) wait its turn, so together they never go
+-- over one request per gap_ms.
+create function public.luma_slot(gap_ms integer default 1000) returns void
+language plpgsql security definer set search_path = '' as $$
+declare
+  last_at timestamptz;
+  pause double precision;
+begin
+  select (s.value #>> '{}')::timestamptz into last_at
+  from public.app_settings s where s.key = 'luma_last_request' for update;
+  pause := gap_ms / 1000.0 - extract(epoch from clock_timestamp() - coalesce(last_at, '-infinity'));
+  if pause > 0 then
+    perform pg_sleep(least(pause, 5));
+  end if;
+  update public.app_settings set value = to_jsonb(clock_timestamp()::text) where key = 'luma_last_request';
+end;
+$$;
+
 -- Monthly cleanup (scheduled in 20261013130000_ingest_cron.sql).
 create function public.run_retention() returns jsonb
 language plpgsql security definer set search_path = '' as $$
@@ -699,6 +784,7 @@ revoke all on function
   public.ingest_event(jsonb),
   public.cancel_missing_events(uuid, text[]),
   public.ingest_guests(text, jsonb, integer, boolean),
+  public.luma_slot(integer),
   public.run_retention()
 from public, anon, authenticated;
 grant execute on function
@@ -707,6 +793,7 @@ grant execute on function
   public.ingest_event(jsonb),
   public.cancel_missing_events(uuid, text[]),
   public.ingest_guests(text, jsonb, integer, boolean),
+  public.luma_slot(integer),
   public.run_retention()
 to service_role;
 
@@ -734,6 +821,10 @@ to authenticated;
 
 - `guard_event_review` no es `security definer`. Así `current_user` es el rol del cliente. Dentro de `merge_events`, que sí lo es, `current_user` es el propietario y el guardia no actúa (el mismo patrón que `keep_one_manager`).
 - `events.city` sigue siendo `not null`. Los eventos importados sin ciudad se guardan con `''` y en `draft`.
+- `ingest_event` solo escribe en eventos de `payload.org_id`. Un evento con el mismo identificador externo en otra organización devuelve `skipped` con `reason: 'other_org'`. `add-url` lo traduce en un 409.
+- `link_external_people` se ejecuta con cada lectura de invitados. Primero deshace los vínculos cuyo handle ya no coincide con la identidad de X y borra las pendientes que generaron.
+- `event_shadows` no devuelve nunca a un invitado vinculado a otro usuario. Así una asistencia detectada sigue siendo privada y nadie sale dos veces en los contactos (como usuario y como sombra).
+- `luma_slot` serializa todas las peticiones a Luma, sea cual sea la función que las haga. `app_settings.luma_last_request` no es un ajuste: `SyncSection` solo lee las claves booleanas.
 - La comprobación es `similarity(lower(d.name), lower(v_name)) >= 0.5` sobre los eventos del mismo día. El índice de `starts_on` ya acota bien la búsqueda, así que no hace falta un índice trigram.
 
 **Verificación:** `supabase db reset`. Debe terminar sin errores.
@@ -759,7 +850,7 @@ insert into auth.identities (provider_id, user_id, provider, identity_data, crea
   ('9002', '00000000-0000-4000-8000-000000000092', 'twitter', '{"user_name":"TI_Guest"}', now(), now()),
   ('9003', '00000000-0000-4000-8000-000000000093', 'twitter', '{"user_name":"ti_other"}', now(), now());
 insert into public.app_admins (profile_id) values ('00000000-0000-4000-8000-000000000091');
-insert into public.orgs (id, name) values ('test-ingest-org', 'Ingest test org');
+insert into public.orgs (id, name) values ('test-ingest-org', 'Ingest test org'), ('test-ingest-other-org', 'Other test org');
 insert into public.org_managers (org_id, profile_id) values ('test-ingest-org', '00000000-0000-4000-8000-000000000093');
 insert into public.event_sources (id, org_id, kind, url, external_id)
 values ('00000000-0000-4000-8000-0000000000e1', 'test-ingest-org', 'luma_calendar', 'https://luma.com/test-ingest', 'cal-test');
@@ -819,6 +910,27 @@ begin
   if public.cancel_missing_events('00000000-0000-4000-8000-0000000000e1', array['evt-test-1']) <> 2 then
     raise exception 'missing events were not canceled';
   end if;
+
+  -- Another organization cannot take over an imported event.
+  r := public.ingest_event(jsonb_build_object(
+    'external_kind', 'luma', 'external_id', 'evt-test-1', 'org_id', 'test-ingest-other-org',
+    'source_id', null, 'id_base', 'x',
+    'name', 'Hijacked', 'starts_at', '2031-01-01T18:00:00Z', 'city', 'Sevilla', 'country', 'ES'));
+  if r ->> 'action' <> 'skipped' or (select name from public.events where id = 'test-ingest-noche-26-2') <> 'Noche de IA · Madrid' then
+    raise exception 'an event of another organization was changed: %', r;
+  end if;
+
+  -- A published event that moves abroad goes back to draft.
+  r := public.ingest_event(jsonb_build_object(
+    'external_kind', 'luma', 'external_id', 'evt-test-3', 'org_id', 'test-ingest-org',
+    'source_id', '00000000-0000-4000-8000-0000000000e1', 'id_base', 'test-ingest-taller-26',
+    'name', 'Taller de agentes', 'starts_at', '2030-04-01T17:00:00Z', 'city', 'Valencia', 'country', 'ES'));
+  if r ->> 'status' <> 'published' then raise exception 'taller not published: %', r; end if;
+  r := public.ingest_event(jsonb_build_object(
+    'external_kind', 'luma', 'external_id', 'evt-test-3', 'org_id', 'test-ingest-org',
+    'source_id', '00000000-0000-4000-8000-0000000000e1', 'id_base', 'x',
+    'name', 'Taller de agentes', 'starts_at', '2030-04-01T17:00:00Z', 'city', 'Lisboa', 'country', 'PT'));
+  if r ->> 'status' <> 'draft' then raise exception 'event moved abroad stayed published: %', r; end if;
 end $$;
 
 -- ingest_guests: stores handles, skips the rest, links verified handles only.
@@ -905,11 +1017,16 @@ do $$ begin
   end;
 end $$;
 
--- Another signed-in person does not see pending attendance of others.
+-- Another signed-in person does not see pending attendance of others, nor
+-- guests linked to a user as shadows.
 select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000094', true);
 do $$ begin
   if exists (select 1 from public.attendances where status <> 'confirmed') then
     raise exception 'pending attendance of others is visible';
+  end if;
+  if exists (select 1 from public.event_shadows() where handle in ('ti_guest', 'ti_other'))
+    or not exists (select 1 from public.event_shadows() where handle = 'ti_typed' and not is_me) then
+    raise exception 'shadows show linked users or miss unlinked guests';
   end if;
   if exists (select 1 from public.event_sources) then
     raise exception 'a regular user sees sources';
@@ -940,13 +1057,35 @@ do $$ begin
     raise exception 'manager merged events';
   exception when insufficient_privilege then null;
   end;
-  -- "Ocultarme": suppresses the handle and deletes what was imported.
-  perform public.hide_me(false);
-  if not exists (select 1 from public.suppressed_handles where handle = 'ti_other')
-    or exists (select 1 from public.event_shadows() where handle = 'ti_other') then
-    raise exception 'hide_me did not suppress the handle';
+  -- "Ocultarme": deletes what was imported. A manager's account is kept.
+  if public.hide_me(null) then
+    raise exception 'hide_me deleted the account of a manager';
+  end if;
+  if exists (select 1 from public.event_shadows() where handle = 'ti_other') then
+    raise exception 'hide_me left the shadow';
   end if;
 end $$;
+
+-- What only the importer sees: the suppression, and a guest whose X handle
+-- changed is unlinked with its pending attendance. A detection does not undo
+-- a dismissal when events are merged.
+reset role;
+set local role service_role;
+do $$
+declare r jsonb;
+begin
+  if not exists (select 1 from public.suppressed_handles where handle = 'ti_other') then
+    raise exception 'hide_me did not suppress the handle';
+  end if;
+  r := public.ingest_guests('test-ingest-noche-26-2', '[{"luma_user_id":"usr-z","handle":"ti_other","name":"Again"}]'::jsonb, 120);
+  if (r ->> 'stored')::int <> 0 then
+    raise exception 'a suppressed handle was stored again';
+  end if;
+  insert into public.attendances (profile_id, event_id, source, status)
+  values ('00000000-0000-4000-8000-000000000092', 'test-ingest-noche-26', 'luma', 'pending');
+end $$;
+reset role;
+set local role authenticated;
 
 -- The admin merges the duplicate and sees the coverage.
 select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000091', true);
@@ -960,8 +1099,28 @@ do $$ begin
   if (select status from public.events where id = 'test-ingest-noche-26') <> 'merged' then
     raise exception 'duplicate was not merged';
   end if;
+  if (select status from public.attendances where event_id = 'test-ingest-noche-26-2'
+      and profile_id = '00000000-0000-4000-8000-000000000092') <> 'dismissed' then
+    raise exception 'merging brought a dismissed event back';
+  end if;
   if (select synced_events from public.ingest_coverage()) <> 1 then
     raise exception 'coverage does not count the synced event';
+  end if;
+end $$;
+
+reset role;
+set local role service_role;
+do $$ begin
+  update auth.identities set identity_data = '{"user_name":"ti_renamed"}'
+  where user_id = '00000000-0000-4000-8000-000000000092';
+  insert into public.attendances (profile_id, event_id, source, status)
+  values ('00000000-0000-4000-8000-000000000092', 'test-ingest-taller-26', 'luma', 'pending');
+  perform public.link_external_people(null, null);
+  if (select profile_id from public.external_people where handle = 'ti_guest') is not null then
+    raise exception 'a guest stayed linked after the X handle changed';
+  end if;
+  if exists (select 1 from public.attendances where profile_id = '00000000-0000-4000-8000-000000000092' and status = 'pending') then
+    raise exception 'pending attendance of an old link was kept';
   end if;
 end $$;
 
@@ -1170,8 +1329,17 @@ export function zonedToUtc(parts: readonly [number, number, number, number, numb
 ```ts
 // Client for Luma's public web endpoints (api.lu.ma), used without a key.
 // One request at a time with a pause between them, and retries on 429/5xx.
+// In the Edge Functions the pause is shared by every run through
+// public.luma_slot() (see useSharedLumaPace in ingest.ts).
 
-export const lumaConfig = { gapMs: 1000, retryMs: 2000, base: 'https://api.lu.ma' }
+export const lumaConfig: {
+  gapMs: number
+  retryMs: number
+  timeoutMs: number
+  base: string
+  /** Waits for the turn to call Luma; null = a pause kept in this instance. */
+  throttle: (() => Promise<void>) | null
+} = { gapMs: 1000, retryMs: 2000, timeoutMs: 15_000, base: 'https://api.lu.ma', throttle: null }
 
 const USER_AGENT = 'techxdir-sync/1.0 (+https://github.com/Pedrodeluna/techxdir)'
 
@@ -1187,10 +1355,16 @@ const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 export async function lumaGet<T>(path: string, params: Record<string, string>): Promise<T> {
   const url = `${lumaConfig.base}/${path}?${new URLSearchParams(params)}`
   for (let attempt = 0; ; attempt++) {
-    const pause = last + lumaConfig.gapMs - Date.now()
-    if (pause > 0) await wait(pause)
-    last = Date.now()
-    const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT, 'Accept': 'application/json' } })
+    if (lumaConfig.throttle) await lumaConfig.throttle()
+    else {
+      const pause = last + lumaConfig.gapMs - Date.now()
+      if (pause > 0) await wait(pause)
+      last = Date.now()
+    }
+    const res = await fetch(url, {
+      headers: { 'User-Agent': USER_AGENT, 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(lumaConfig.timeoutMs),
+    })
     if (res.ok) return await res.json() as T
     await res.body?.cancel()
     if ((res.status === 429 || res.status >= 500) && attempt < 3) {
@@ -1268,10 +1442,15 @@ export async function resolve(slug: string): Promise<Resolved | null> {
 
 type Page = { entries: LumaEntry[]; has_more?: boolean; next_cursor?: string | null }
 
-async function paginate(path: string, params: Record<string, string>, maxPages: number): Promise<LumaEntry[]> {
+/** complete is false when the listing was cut by maxPages or the deadline. */
+export type Listing = { entries: LumaEntry[]; complete: boolean }
+type ListOptions = { maxPages?: number; deadline?: number }
+
+async function paginate(path: string, params: Record<string, string>, opts: Required<ListOptions>): Promise<Listing> {
   const entries: LumaEntry[] = []
   let cursor: string | null = null
-  for (let page = 0; page < maxPages; page++) {
+  for (let page = 0; page < opts.maxPages; page++) {
+    if (Date.now() > opts.deadline) return { entries, complete: false }
     const res: Page = await lumaGet<Page>(path, {
       ...params,
       pagination_limit: '50',
@@ -1279,18 +1458,18 @@ async function paginate(path: string, params: Record<string, string>, maxPages: 
     })
     entries.push(...(res.entries ?? []))
     cursor = res.next_cursor ?? null
-    if (!res.has_more || !cursor) break
+    if (!res.has_more || !cursor) return { entries, complete: true }
   }
-  return entries
+  return { entries, complete: false }
 }
 
 /** Upcoming events of a calendar. Entries already carry hosts, featured guests and guest_count. */
-export const calendarEvents = (calendarId: string, maxPages = 10) =>
-  paginate('calendar/get-items', { calendar_api_id: calendarId, period: 'future' }, maxPages)
+export const calendarEvents = (calendarId: string, { maxPages = 20, deadline = Infinity }: ListOptions = {}) =>
+  paginate('calendar/get-items', { calendar_api_id: calendarId, period: 'future' }, { maxPages, deadline })
 
 /** Upcoming events of a Luma city page. */
-export const discoverEvents = (placeId: string, maxPages = 3) =>
-  paginate('discover/get-paginated-events', { discover_place_api_id: placeId }, maxPages)
+export const discoverEvents = (placeId: string, { maxPages = 3, deadline = Infinity }: ListOptions = {}) =>
+  paginate('discover/get-paginated-events', { discover_place_api_id: placeId }, { maxPages, deadline })
 
 export const DISCOVER_PLACES: { id: string; city: string }[] = [
   { id: 'discplace-03jiEcS4mvwJuDa', city: 'madrid' },
@@ -1399,10 +1578,20 @@ export const userIdOf = (caller: Caller) => caller.kind === 'cron' ? null : call
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2'
 import { cityFromText, normalizeCity } from './cities.ts'
 import { type IcalEvent, parseIcal } from './ical.ts'
-import { calendarEvents, DISCOVER_PLACES, discoverEvents, type LumaEntry, LumaError, resolve } from './luma.ts'
+import { calendarEvents, DISCOVER_PLACES, discoverEvents, type LumaEntry, LumaError, lumaConfig, resolve } from './luma.ts'
 
 export const BUDGET_MS = 110_000
 export const deadlineFrom = (start = Date.now()) => start + BUDGET_MS
+
+/** Every function shares one pace for Luma through public.luma_slot(). */
+export function useSharedLumaPace(db: SupabaseClient) {
+  lumaConfig.throttle = async () => {
+    const { error } = await db.rpc('luma_slot', { gap_ms: lumaConfig.gapMs })
+    if (error) throw new Error(`luma_slot: ${error.message}`)
+  }
+}
+
+const FETCH_HEADERS = { 'User-Agent': 'techxdir-sync/1.0 (+https://github.com/Pedrodeluna/techxdir)' }
 
 export type Source = {
   id: string
@@ -1421,7 +1610,8 @@ export type EventPayload = {
   starts_at: string
   ends_at: string | null
   url: string | null
-  city: string | null
+  /** undefined: the feed has no place (online); null: a place that is not a known city */
+  city?: string | null
   country: string | null
   guest_count: number | null
   canceled: boolean
@@ -1475,6 +1665,7 @@ export const meetupIcalUrl = (group: string) => `https://www.meetup.com/${group}
 export function fromLuma(entry: LumaEntry): EventPayload {
   const e = entry.event
   const geo = e.geo_address_info ?? {}
+  const place = geo.city ?? geo.city_state ?? null
   return {
     external_kind: 'luma',
     external_id: e.api_id,
@@ -1482,7 +1673,7 @@ export function fromLuma(entry: LumaEntry): EventPayload {
     starts_at: e.start_at,
     ends_at: e.end_at ?? null,
     url: `https://luma.com/${e.url}`,
-    city: normalizeCity(geo.city ?? geo.city_state ?? null),
+    city: place ? normalizeCity(place) : undefined,
     country: geo.country_code?.toUpperCase() ?? null,
     guest_count: typeof entry.guest_count === 'number' ? entry.guest_count : null,
     canceled: entry.status === 'canceled' || entry.status === 'cancelled',
@@ -1498,7 +1689,7 @@ export function fromIcal(event: IcalEvent): EventPayload {
     starts_at: event.start.toISOString(),
     ends_at: event.end?.toISOString() ?? null,
     url: event.url,
-    city,
+    city: event.location?.trim() ? city : undefined,
     // Meetup feeds do not carry a country. A known Spanish city is enough;
     // an online or unknown place stays as a draft (city null).
     country: city ? 'ES' : null,
@@ -1521,43 +1712,57 @@ async function ingest(db: SupabaseClient, payload: EventPayload, src: { id: stri
   return data as { id: string; action: 'created' | 'updated' | 'unchanged' | 'skipped'; status: string }
 }
 
-export type SyncStats = { sources: number; created: number; updated: number; canceled: number; errors: string[] }
-export const emptyStats = (): SyncStats => ({ sources: 0, created: 0, updated: 0, canceled: 0, errors: [] })
+/** partial: sources left half done by the deadline; they go first in the next run. */
+export type SyncStats = { sources: number; created: number; updated: number; canceled: number; partial: number; errors: string[] }
+export const emptyStats = (): SyncStats => ({ sources: 0, created: 0, updated: 0, canceled: 0, partial: 0, errors: [] })
 
-async function readSource(src: Source): Promise<EventPayload[]> {
+async function readSource(src: Source, deadline: number): Promise<{ events: EventPayload[]; complete: boolean }> {
   if (src.kind === 'luma_calendar') {
-    return (await calendarEvents(src.external_id))
-      .filter(entry => entry.event?.visibility !== 'private')
-      .map(fromLuma)
+    const listing = await calendarEvents(src.external_id, { deadline })
+    return {
+      events: listing.entries.filter(entry => entry.event?.visibility !== 'private').map(fromLuma),
+      complete: listing.complete,
+    }
   }
-  const res = await fetch(meetupIcalUrl(src.external_id), {
-    headers: { 'User-Agent': 'techxdir-sync/1.0 (+https://github.com/Pedrodeluna/techxdir)' },
-  })
+  const res = await fetch(meetupIcalUrl(src.external_id), { headers: FETCH_HEADERS, signal: AbortSignal.timeout(15_000) })
   if (!res.ok) throw new Error(`Meetup ${res.status} on ${src.external_id}`)
-  return parseIcal(await res.text()).map(fromIcal)
+  return { events: parseIcal(await res.text()).map(fromIcal), complete: true }
 }
 
-/** Reads one source and writes its events. Errors are stored on the source. */
-export async function syncSource(db: SupabaseClient, src: Source, stats: SyncStats) {
+/**
+ * Reads one source and writes its events. Errors are stored on the source.
+ * Missing events are canceled only after a complete read, an empty one
+ * included. A source cut by the deadline keeps its old last_synced_at, so it
+ * is the first one of the next run; the writes are idempotent, so starting
+ * it again only costs the reading.
+ */
+export async function syncSource(db: SupabaseClient, src: Source, stats: SyncStats, deadline = deadlineFrom()) {
   stats.sources++
   try {
     const now = Date.now()
-    const events = (await readSource(src))
+    const read = await readSource(src, deadline)
+    const events = read.events
       .filter(e => !src.country_filter || e.country === src.country_filter)
       .filter(e => new Date(e.ends_at ?? e.starts_at).getTime() >= now)
+    let complete = read.complete
     const seen: string[] = []
     for (const event of events) {
+      if (Date.now() > deadline) {
+        complete = false
+        break
+      }
       const result = await ingest(db, event, src)
       seen.push(event.external_id)
       if (result.action === 'created') stats.created++
       if (result.action === 'updated') stats.updated++
     }
-    // An empty answer is more likely a hiccup than a calendar with nothing planned.
-    if (seen.length) {
-      const { data, error } = await db.rpc('cancel_missing_events', { target_source: src.id, seen })
-      if (error) throw new Error(error.message)
-      stats.canceled += data as number
+    if (!complete) {
+      stats.partial++
+      return
     }
+    const { data, error } = await db.rpc('cancel_missing_events', { target_source: src.id, seen })
+    if (error) throw new Error(error.message)
+    stats.canceled += data as number
     await db.from('event_sources').update({ last_synced_at: new Date().toISOString(), last_error: null }).eq('id', src.id)
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
@@ -1585,21 +1790,25 @@ export async function syncAll(
   let done = 0
   for (const src of (sources ?? []) as Source[]) {
     if (Date.now() > opts.deadline) break
-    await syncSource(db, src, stats)
+    await syncSource(db, src, stats, opts.deadline)
     done++
   }
   if (!opts.sourceId && Date.now() < opts.deadline) await refreshLooseEvents(db, stats, opts.deadline)
   return { ...stats, pending: (sources?.length ?? 0) - done }
 }
 
-/** Luma events added one by one (no source): refreshed one at a time. */
+/**
+ * Luma events added one by one (no source) that have not ended: the ones
+ * read longest ago first, so every run moves on (ingest_event stamps synced_at).
+ */
 async function refreshLooseEvents(db: SupabaseClient, stats: SyncStats, deadline: number) {
+  const now = new Date().toISOString()
   const { data } = await db.from('events')
     .select('id, org_id, url, external_id')
     .eq('external_kind', 'luma').is('source_id', null)
     .in('status', ['draft', 'published'])
-    .gte('starts_on', madridDate(new Date()))
-    .order('starts_on').limit(50)
+    .or(`ends_at.gte.${now},starts_at.gte.${now}`)
+    .order('synced_at', { ascending: true, nullsFirst: true }).limit(50)
   for (const row of data ?? []) {
     if (Date.now() > deadline) break
     const slug = String(row.url ?? '').split('/').pop()
@@ -1610,7 +1819,7 @@ async function refreshLooseEvents(db: SupabaseClient, stats: SyncStats, deadline
         const result = await ingest(db, fromLuma(found.data), { id: null, org_id: row.org_id })
         if (result.action === 'updated') stats.updated++
       } else if (!found) {
-        await db.from('events').update({ status: 'canceled' }).eq('id', row.id)
+        await db.from('events').update({ status: 'canceled', synced_at: now }).eq('id', row.id)
         stats.canceled++
       }
     } catch (error) {
@@ -1634,7 +1843,7 @@ export async function discover(db: SupabaseClient, deadline: number) {
     if (Date.now() > deadline) break
     let entries: LumaEntry[]
     try {
-      entries = await discoverEvents(place.id)
+      entries = (await discoverEvents(place.id, { deadline })).entries
     } catch (error) {
       stats.errors.push(`${place.city}: ${error instanceof Error ? error.message : error}`)
       continue
@@ -1670,10 +1879,15 @@ export async function startRun(db: SupabaseClient, job: Job): Promise<number | n
   return (data?.id as number | undefined) ?? null
 }
 
-export async function finishRun(db: SupabaseClient, id: number | null, stats: unknown, error?: string) {
+/** A run with errors on some items is not OK: the first one goes to sync_runs.error. */
+export async function finishRun(db: SupabaseClient, id: number | null, stats: { errors?: string[] }, error?: string) {
   if (id === null) return
+  const itemErrors = stats.errors ?? []
+  const first = error ?? (itemErrors.length
+    ? `${itemErrors.length} ${itemErrors.length === 1 ? 'error' : 'errores'}: ${itemErrors[0]}`
+    : null)
   await db.from('sync_runs').update({
-    finished_at: new Date().toISOString(), ok: !error, stats, error: error ?? null,
+    finished_at: new Date().toISOString(), ok: !first, stats, error: first?.slice(0, 500) ?? null,
   }).eq('id', id)
 }
 ```
@@ -1814,6 +2028,14 @@ Deno.test('maps Luma entries', () => {
   })
   assertEquals([payload.url, payload.city, payload.country, payload.guest_count], ['https://luma.com/abc', 'Madrid', 'ES', 42])
 })
+
+Deno.test('an online Luma event sends no city key', () => {
+  const base = { api_id: 'evt-2', name: 'E', start_at: '2026-01-01T18:00:00Z', url: 'abc' }
+  const online = fromLuma({ event: { ...base, geo_address_info: {} } })
+  const town = fromLuma({ event: { ...base, geo_address_info: { city: 'Villarriba', country_code: 'es' } } })
+  assertEquals('city' in JSON.parse(JSON.stringify(online)), false)
+  assertEquals(town.city, 'Villarriba')
+})
 ```
 
 **Verificación:** `cd supabase/functions && deno task test && deno lint _shared/`.
@@ -1857,7 +2079,7 @@ CRON_SECRET=local-cron-secret
 // sources of their organizations ("Sincronizar ahora").
 import { authorize, canManage, serviceClient } from '../_shared/auth.ts'
 import { corsHeaders, json } from '../_shared/cors.ts'
-import { deadlineFrom, discover, finishRun, startRun, syncAll } from '../_shared/ingest.ts'
+import { deadlineFrom, discover, finishRun, startRun, syncAll, useSharedLumaPace } from '../_shared/ingest.ts'
 
 Deno.serve(async req => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
@@ -1883,6 +2105,7 @@ Deno.serve(async req => {
     if (!src || !canManage(caller, src.org_id)) return json({ error: 'Not allowed' }, 403)
   }
 
+  useSharedLumaPace(db)
   const run = await startRun(db, job)
   try {
     const stats = job === 'discover'
@@ -1910,7 +2133,7 @@ Deno.serve(async req => {
 // 6 hours, and one last time a day after it ends; then it is frozen.
 import { authorize, serviceClient } from '../_shared/auth.ts'
 import { corsHeaders, json } from '../_shared/cors.ts'
-import { deadlineFrom, finishRun, fromLuma, startRun } from '../_shared/ingest.ts'
+import { deadlineFrom, finishRun, fromLuma, startRun, useSharedLumaPace } from '../_shared/ingest.ts'
 import { guestsOf, LumaError, resolve } from '../_shared/luma.ts'
 
 const HOUR = 3600_000
@@ -1935,6 +2158,7 @@ Deno.serve(async req => {
   const setting = (key: string) => settings?.find(s => s.key === key)?.value === true
   if (!setting('guest_ingest_enabled')) return json({ skipped: 'guest_ingest_enabled is off' })
 
+  useSharedLumaPace(db)
   const run = await startRun(db, 'guests')
   const stats = { events: 0, stored: 0, linked: 0, frozen: 0, pending: 0, errors: [] as string[], notes: [] as string[] }
   if (setting('luma_full_list_enabled')) stats.notes.push('Phase B (full guest list) is not implemented; ran Phase A')
@@ -2015,8 +2239,8 @@ Deno.serve(async req => {
 // only add to the organizations they run.
 import { authorize, canManage, serviceClient, userIdOf } from '../_shared/auth.ts'
 import { corsHeaders, json } from '../_shared/cors.ts'
-import { emptyStats, fromLuma, eventIdBase, meetupGroup, meetupIcalUrl, shortName, slugify,
-  type Source, syncSource } from '../_shared/ingest.ts'
+import { deadlineFrom, emptyStats, fromLuma, eventIdBase, meetupGroup, meetupIcalUrl, shortName, slugify,
+  type Source, syncSource, useSharedLumaPace } from '../_shared/ingest.ts'
 import { lumaSlug, resolve } from '../_shared/luma.ts'
 
 type Body = { url?: unknown; org_id?: unknown; new_org?: unknown; country_filter?: unknown }
@@ -2028,6 +2252,8 @@ Deno.serve(async req => {
   const db = serviceClient()
   const caller = await authorize(req, db)
   if (!caller || caller.kind === 'cron') return json({ error: 'Not allowed' }, 403)
+  const deadline = deadlineFrom()
+  useSharedLumaPace(db)
 
   let body: Body
   try {
@@ -2049,7 +2275,7 @@ Deno.serve(async req => {
   const group = meetupGroup(url)
   const slug = group ? null : lumaSlug(url)
   if (group) {
-    const res = await fetch(meetupIcalUrl(group), { method: 'GET' })
+    const res = await fetch(meetupIcalUrl(group), { signal: AbortSignal.timeout(15_000) })
     await res.body?.cancel()
     if (!res.ok) return json({ error: 'No encontramos ese grupo de Meetup' }, 404)
     source = { kind: 'meetup_ical', url: `https://www.meetup.com/${group}/`, external_id: group,
@@ -2065,6 +2291,9 @@ Deno.serve(async req => {
           id_base: eventIdBase(payload.name, payload.starts_at), short: shortName(payload.name) },
       })
       if (error) return json({ error: error.message }, 500)
+      if (data?.reason === 'other_org') {
+        return json({ error: 'Ese evento ya está en otra organización', event: data }, 409)
+      }
       await db.from('import_suggestions').update({ status: 'accepted' }).eq('external_id', payload.external_id)
       return json({ kind: 'event', event: data })
     }
@@ -2100,7 +2329,7 @@ Deno.serve(async req => {
   await db.from('import_suggestions').update({ status: 'accepted' }).eq('external_id', source.external_id)
 
   const stats = emptyStats()
-  await syncSource(db, created as Source, stats)
+  await syncSource(db, created as Source, stats, deadline)
   return json({ kind: 'source', source: created, org_id: orgId, stats }, 201)
 })
 ```
@@ -2240,6 +2469,8 @@ export type ShadowRow = {
   event_id: string; person_id: string; handle: string; name: string; avatar_url: string | null; is_me: boolean
 }
 
+// event_shadows only returns guests no account is linked to (plus your own,
+// is_me), so a person never shows up both as a profile and as a shadow.
 export function peopleFromRows(profiles: PublicProfile[], attendances: Attendance[], userId: string): Person[] {
   const events = new Map<string, string[]>()
   for (const row of attendances) {
@@ -2689,6 +2920,16 @@ Hay que volver a la página que pidió el acceso, por ejemplo `/privacidad`. Sol
 
 Las dos llamadas `navigate('/', { replace: true })` pasan a ser `navigate(nextPath(), { replace: true })`.
 
+Quien viene a ocultarse no tiene que completar la acreditación (spec §9): si `nextPath()` empieza por `/privacidad`, se salta el paso `complete` aunque falte el handle.
+
+```diff
+       .then(p => {
+         if (!alive) return
+-        if (p.handle) navigate('/', { replace: true })
++        if (p.handle || nextPath().startsWith('/privacidad')) navigate(nextPath(), { replace: true })
+         else {
+```
+
 ### 8.2 `web/src/pages/Privacy.tsx` (nuevo)
 
 ```tsx
@@ -2703,6 +2944,7 @@ import './privacy.css'
 /* Qué importamos de Luma y Meetup, y cómo dejar de aparecer. */
 
 const xProvider = import.meta.env.VITE_X_AUTH_PROVIDER === 'x' ? 'x' : 'twitter'
+const contactEmail: string | undefined = import.meta.env.VITE_PRIVACY_EMAIL || undefined
 
 type Status = { kind: 'idle' } | { kind: 'busy' } | { kind: 'done'; text: string } | { kind: 'error'; text: string }
 
@@ -2727,17 +2969,19 @@ export function Privacy() {
     if (error) setStatus({ kind: 'error', text: 'No hemos podido abrir X. Prueba de nuevo.' })
   }
 
-  async function hide(deleteAccount: boolean) {
+  // null: hide_me borra la cuenta solo si se acaba de crear para esto
+  // (menos de 30 minutos, sin asistencias, sin gestionar nada).
+  async function hide(deleteAccount: boolean | null) {
     if (!supabase) return
     setStatus({ kind: 'busy' })
-    const { error } = await supabase.rpc('hide_me', { delete_account: deleteAccount })
+    const { data: deleted, error } = await supabase.rpc('hide_me', { delete_account: deleteAccount })
     if (error) {
       setStatus({ kind: 'error', text: error.code === '42501'
         ? 'Necesitamos que entres con X para saber que la cuenta es tuya.'
         : 'No hemos podido completarlo. Prueba de nuevo.' })
       return
     }
-    if (deleteAccount) {
+    if (deleted === true) {
       await supabase.auth.signOut()
       navigate('/', { replace: true })
       return
@@ -2776,13 +3020,20 @@ export function Privacy() {
           )}
           {session && status.kind !== 'done' && (
             <div className="pv-actions">
-              <button type="button" className="primary" onClick={() => hide(false)} disabled={busy}>Ocultarme</button>
+              <button type="button" className="primary" onClick={() => hide(null)} disabled={busy}>Ocultarme</button>
               <button type="button" className="link" onClick={() => hide(true)} disabled={busy}>Ocultarme y borrar mi cuenta</button>
             </div>
           )}
           {status.kind === 'done' && <p role="status">{status.text}</p>}
           {status.kind === 'error' && <p className="au-error" role="alert">{status.text}</p>}
         </section>
+
+        {contactEmail && (
+          <>
+            <h2>Contacto</h2>
+            <p>Para cualquier duda o para ejercer tus derechos sin entrar con X, escribe a <a href={`mailto:${contactEmail}`}>{contactEmail}</a>.</p>
+          </>
+        )}
       </main>
     </div>
   )
@@ -2855,6 +3106,9 @@ Hay que importar `Link` si `Landing.tsx` no lo hace ya.
 - `/privacidad` sin sesión muestra "Entrar con X para ocultarme".
 - Con sesión, "Ocultarme" llama a `hide_me`. Con un usuario sin identidad de X devuelve el mensaje de 42501.
 - `/auth/callback?next=//evil.com` navega a `/`.
+- Una cuenta nueva que entra solo para ocultarse vuelve a `/privacidad` sin pasar por "completar acreditación". Al pulsar "Ocultarme", `hide_me(null)` la borra y la sesión se cierra.
+- Entre la vuelta de X y "Ocultarme" el perfil existe unos segundos, como en cualquier alta. No sale en la portada porque no tiene handle ni asistencias.
+- `web/.env.example` gana la línea `# Opcional: email de contacto en /privacidad` + `VITE_PRIVACY_EMAIL=`. Sin ese valor no se muestra la sección de contacto.
 
 ### 8.6 `supabase/config.toml` (modificar)
 
@@ -3308,7 +3562,8 @@ export function SyncSection() {
                 <time className="adm-date" dateTime={r.started_at}>{formatDate(r.started_at)} {r.started_at.slice(11, 16)}</time>
                 <span className="adm-row-main">
                   <strong>{JOBS[r.job] ?? r.job}</strong>
-                  <small>{r.error ?? (summary(r.stats) || 'sin cambios')}</small>
+                  <small>{summary(r.stats) || 'sin cambios'}</small>
+                  {r.error && <small className="adm-run-error">{r.error}</small>}
                 </span>
                 <span className={`adm-tag${r.ok === false ? ' adm-tag-ban' : ''}`}>{r.ok === null ? 'En curso' : r.ok ? 'OK' : 'Error'}</span>
               </div>
@@ -3435,6 +3690,7 @@ En `EventForm`, el estado inicial al crear incluye `status: 'published'`. Al cre
 .adm-subhead { margin: 40px 0 12px; font: 500 10.5px/1 var(--mono); letter-spacing: .15em; text-transform: uppercase; color: var(--muted-text); }
 .adm-note { margin: 0 0 16px; color: var(--muted-text); font-size: 13px; }
 .adm-row-static { cursor: default; }
+.adm-run-error { display: block; color: var(--danger, #b42318); }
 .adm-row-main a { color: inherit; text-decoration: none; }
 .adm-suggest-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .adm-suggest-actions select { max-width: 220px; padding: 6px 0; border: 0; border-bottom: 1px solid var(--line); background: transparent; font: inherit; font-size: 13px; }
