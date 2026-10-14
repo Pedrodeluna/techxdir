@@ -21,6 +21,8 @@ export interface TechEvent {
   url: string | null
   kind: string
   color: string
+  /** Asistentes según Luma, incluidos los que no tienen X (solo eventos importados) */
+  guestCount?: number | null
 }
 
 export interface Person {
@@ -30,6 +32,10 @@ export interface Person {
   role: string
   bio: string
   events: string[]
+  /** Visto en la lista pública de Luma, sin asistencia confirmada en la app */
+  shadow?: boolean
+  /** Foto de Luma (solo sombras) */
+  avatar?: string | null
 }
 
 export interface Me {

@@ -1,4 +1,5 @@
 import { Fragment, useLayoutEffect, useRef, useState, type CSSProperties, type RefObject } from 'react'
+import { Link } from 'react-router-dom'
 import { Avatar } from '../bits'
 import { at, focusQuiet, replay } from '../dom'
 import { EV, peopleOf, byDateAsc, byDateDesc, contacts, fmtDate, isPast, others, plural, type BadgeState } from '../model'
@@ -159,14 +160,20 @@ export function PersonView({ id, state, backLabel = '← Todas las personas', on
     <div className="stagger person-view" data-id={p.id}>
       <button className="link back-link" type="button" data-people-back data-view-back style={at(0)} onClick={onBack}>{backLabel}</button>
       <div className="pv-head" style={at(1)}>
-        <Avatar name={p.name} />
+        <Avatar name={p.name} photo={p.avatar} />
         <div>
           <strong>{p.name}</strong>
           {p.handle && <a className="p-handle pv-x" href={`https://x.com/${p.handle}`} target="_blank" rel="noopener noreferrer" aria-label={`Ver @${p.handle} en X`}>@{p.handle} ↗</a>}
-          <span>{p.role}</span>
+          <span>{p.shadow ? 'Visto en Luma' : p.role}</span>
         </div>
       </div>
       {p.bio && <p className="pv-bio" style={at(2)}>{p.bio}</p>}
+      {p.shadow && (
+        <p className="pv-bio pv-shadow" style={at(2)}>
+          Aparece en la lista pública de invitados de Luma con este X. Todavía no ha confirmado su asistencia en techxdir.{' '}
+          <Link className="link" to="/privacidad#ocultarme">¿Eres tú? Ocúltate</Link>
+        </p>
+      )}
       <div className="pv-stats" style={at(2)}>
         <div><strong>{evs.length}</strong><span>{evs.length === 1 ? 'evento' : 'eventos'}</span></div>
         <div><strong>{shared}</strong><span>en común contigo</span></div>

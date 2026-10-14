@@ -14,18 +14,25 @@ type Access = 'loading' | 'admin' | 'denied' | 'demo' | 'error'
 async function loadCounts(): Promise<Counts> {
   if (!supabase) throw new Error('Supabase is not configured')
   const count = (table: string) => supabase!.from(table).select('*', { count: 'exact', head: true })
-  const [people, orgs, events, bans, admins] = await Promise.all([
+  const [people, orgs, events, bans, admins, review, suggestions] = await Promise.all([
     count('profiles'), count('orgs'), count('events'), count('bans'), count('app_admins'),
+    supabase.from('events').select('*', { count: 'exact', head: true }).eq('status', 'draft'),
+    supabase.from('import_suggestions').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
   ])
-  const failed = [people, orgs, events, bans, admins].find(result => result.error)
+  const failed = [people, orgs, events, bans, admins, review, suggestions].find(result => result.error)
   if (failed?.error) throw failed.error
-  return { people: people.count ?? 0, orgs: orgs.count ?? 0, events: events.count ?? 0, bans: bans.count ?? 0, admins: admins.count ?? 0 }
+  return {
+    people: people.count ?? 0, orgs: orgs.count ?? 0, events: events.count ?? 0, bans: bans.count ?? 0, admins: admins.count ?? 0,
+    review: review.count ?? 0, suggestions: suggestions.count ?? 0,
+  }
 }
 
 const sections: { to: string; label: string; count?: (c: Counts) => number; note?: (c: Counts) => string | null }[] = [
   { to: '/admin', label: 'Resumen' },
   { to: '/admin/organizaciones', label: 'Organizaciones', count: c => c.orgs },
-  { to: '/admin/eventos', label: 'Eventos', count: c => c.events },
+  { to: '/admin/eventos', label: 'Eventos', count: c => c.events, note: c => c.review ? `${c.review} por revisar` : null },
+  { to: '/admin/fuentes', label: 'Fuentes', note: c => c.suggestions ? `${c.suggestions} sugerencias` : null },
+  { to: '/admin/sincronizacion', label: 'Sincronización' },
   { to: '/admin/usuarios', label: 'Usuarios', count: c => c.people, note: c => c.bans ? `${c.bans} ${c.bans === 1 ? 'bloqueado' : 'bloqueados'}` : null },
   { to: '/admin/administradores', label: 'Administradores', count: c => c.admins },
 ]

@@ -62,20 +62,28 @@ export function useBadgeStore(userId: string | null) {
   const latest = useRef(state)
   useEffect(() => { latest.current = state })
 
+  const [detected, setDetected] = useState<string[]>([])
+
   // con sesión: el perfil y la asistencia vienen de Supabase
   useEffect(() => {
     if (!userId || !supabase) return
+    const client = supabase
     let alive = true
-    Promise.all([
-      getProfile(),
-      supabase.from('attendances').select('event_id').eq('profile_id', userId),
-    ]).then(([profile, attendance]) => {
+    async function attendance() {
+      // Cruza tu X verificado con los invitados de Luma. Si falla, seguimos con lo que haya.
+      await client.rpc('claim_detected_attendances').then(() => undefined, () => undefined)
+      const { data, error } = await client.from('attendances').select('event_id,status').eq('profile_id', userId!)
+      if (error) throw error
+      return data as { event_id: string; status: 'pending' | 'confirmed' | 'dismissed' }[]
+    }
+    Promise.all([getProfile(), attendance()]).then(([profile, rows]) => {
       if (!alive) return
       const next: BadgeState = {
         me: fromProfile(profile, latest.current.me.photo),
-        myEvents: attendance.data?.map(a => a.event_id as string) ?? latest.current.myEvents,
+        myEvents: rows.filter(a => a.status === 'confirmed').map(a => a.event_id),
       }
       setState(next)
+      setDetected(rows.filter(a => a.status === 'pending').map(a => a.event_id))
       write(userKey(userId), next)
       setReady(true)
     }).catch(() => { if (alive) { setProfileError(true); setReady(true) } }) // sin red: seguimos con la copia local
@@ -96,11 +104,28 @@ export function useBadgeStore(userId: string | null) {
     }
     const added = next.myEvents.filter(id => !prev.myEvents.includes(id))
     const removed = prev.myEvents.filter(id => !next.myEvents.includes(id))
-    if (added.length) supabase.from('attendances').insert(added.map(event_id => ({ profile_id: userId, event_id }))).then()
-    if (removed.length) supabase.from('attendances').delete().eq('profile_id', userId).in('event_id', removed).then()
+    const client = supabase
+    for (const id of added) client.rpc('set_attendance', { target_event: id, going: true }).then()
+    for (const id of removed) client.rpc('set_attendance', { target_event: id, going: false }).then()
+    // marcar o quitar un evento detectado también lo resuelve
+    if (added.length || removed.length) setDetected(list => list.filter(id => !added.includes(id) && !removed.includes(id)))
     return saved
   }, [key, userId])
 
-  const shown = userId ? { ...state, live: true, people, peopleLoading, peopleError, retryPeople, catalog, catalogLoading, catalogError, retryCatalog } : state
+  /** Confirma o descarta eventos detectados. Al confirmar, pasan a tu acreditación. */
+  const reviewDetected = useCallback(async (ids: string[], accept: boolean) => {
+    if (!userId || !supabase || !ids.length) return false
+    const { error } = await supabase.rpc('review_detected', { event_ids: ids, accept })
+    if (error) return false
+    setDetected(list => list.filter(id => !ids.includes(id)))
+    if (accept) {
+      const next = { ...latest.current, myEvents: [...new Set([...latest.current.myEvents, ...ids])] }
+      setState(next)
+      write(userKey(userId), next)
+    }
+    return true
+  }, [userId])
+
+  const shown = userId ? { ...state, live: true, detected, reviewDetected, people, peopleLoading, peopleError, retryPeople, catalog, catalogLoading, catalogError, retryCatalog } : state
   return [shown, update, ready, profileError] as const
 }

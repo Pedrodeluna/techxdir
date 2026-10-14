@@ -2,11 +2,12 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { errorText } from '../../lib/dbError'
 import { supabase } from '../../lib/supabase'
 import { DangerZone, Empty, SectionHead, SkeletonRows } from './shared'
-import { formatDate, slugify, slugPattern, useAdmin, type AdminEvent, type Org } from './context'
+import { editableEvent, formatDate, slugify, slugPattern, useAdmin, type AdminEvent, type Org } from './context'
 
-type When = 'upcoming' | 'past' | 'all'
-const COLUMNS = 'id, org_id, name, short, city, starts_on, ends_on, url, kind, color'
-const whenLabels: Record<When, string> = { upcoming: 'Próximos', past: 'Pasados', all: 'Todos' }
+type When = 'upcoming' | 'past' | 'all' | 'review'
+const COLUMNS = 'id, org_id, name, short, city, starts_on, ends_on, url, kind, color, status, external_kind, duplicate_of, guest_count'
+const whenLabels: Record<When, string> = { upcoming: 'Próximos', past: 'Pasados', all: 'Todos', review: 'Por revisar' }
+const statusLabels = { draft: 'Borrador', canceled: 'Cancelado', merged: 'Fusionado' } as const
 
 export function EventsSection() {
   const { busy, run } = useAdmin()
@@ -26,7 +27,7 @@ export function EventsSection() {
     const [eventResult, orgResult, attendanceResult] = await Promise.all([
       client.from('events').select(COLUMNS).order('starts_on'),
       client.from('orgs').select('id, name, logo').order('name'),
-      client.from('attendances').select('event_id'),
+      client.from('attendances').select('event_id').eq('status', 'confirmed'),
     ])
     const failed = eventResult.error || orgResult.error || attendanceResult.error
     if (failed) throw failed
@@ -40,12 +41,14 @@ export function EventsSection() {
   useEffect(() => { void Promise.resolve().then(reload).catch(err => setLoadError(errorText(err))) }, [reload])
 
   const orgName = useMemo(() => new Map(orgs.map(org => [org.id, org.name])), [orgs])
+  const byId = useMemo(() => new Map((events ?? []).map(e => [e.id, e])), [events])
   const visible = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10)
     const q = query.trim().toLowerCase()
     const rows = (events ?? []).filter(event =>
       (!orgFilter || event.org_id === orgFilter)
-      && (when === 'all' || (when === 'upcoming' ? (event.ends_on ?? event.starts_on) >= today : (event.ends_on ?? event.starts_on) < today))
+      && (when === 'review' ? event.status === 'draft' : event.status !== 'merged')
+      && (when === 'all' || when === 'review' || (when === 'upcoming' ? (event.ends_on ?? event.starts_on) >= today : (event.ends_on ?? event.starts_on) < today))
       && (!q || [event.name, event.short, event.city, event.id].some(value => value.toLowerCase().includes(q))))
     return when === 'past' ? rows.reverse() : rows
   }, [events, orgFilter, when, query])
@@ -61,7 +64,7 @@ export function EventsSection() {
       />
       {creating && (
         <EventForm orgs={orgs} busy={busy} onCancel={() => setCreating(false)} onSave={row => change(async () => {
-          const { error } = await supabase!.from('events').insert(row)
+          const { error } = await supabase!.from('events').insert({ id: row.id, org_id: row.org_id, ...editableEvent(row) })
           if (error) throw error
           setCreating(false)
         }, 'Evento creado.')} />
@@ -99,14 +102,52 @@ export function EventsSection() {
                 <button type="button" className="adm-row" aria-expanded={open} onClick={() => setOpenId(open ? null : event.id)}>
                   <time className="adm-date" dateTime={event.starts_on}>{formatDate(event.starts_on)}</time>
                   <span className="adm-row-main"><strong>{event.name}</strong><small>{orgName.get(event.org_id) ?? event.org_id} · {event.city}</small></span>
+                  <span className="adm-tags">
+                    {event.external_kind && <span className="adm-tag adm-tag-ban">{event.external_kind === 'luma' ? 'Luma' : 'Meetup'}</span>}
+                    {event.status && event.status !== 'published' && <span className="adm-tag">{statusLabels[event.status]}{event.duplicate_of ? ' · duplicado' : ''}</span>}
+                  </span>
                   <span className="adm-row-meta">{people} {people === 1 ? 'asistente' : 'asistentes'}</span>
                   <span className="adm-row-cue" aria-hidden="true">{open ? 'Cerrar' : 'Editar'}</span>
                 </button>
                 {open && (
                   <div className="adm-editor">
+                    {event.status === 'draft' && (
+                      <div className="adm-review">
+                        {event.duplicate_of && byId.get(event.duplicate_of) && (() => {
+                          const twin = byId.get(event.duplicate_of!)!
+                          return (
+                            <div className="adm-twins">
+                              <p>Puede ser el mismo evento que este:</p>
+                              <dl>
+                                <div><dt>Este</dt><dd>{event.name}<small>{formatDate(event.starts_on)} · {event.city} · {event.external_kind ?? 'manual'}</small></dd></div>
+                                <div><dt>Ya existe</dt><dd>{twin.name}<small>{formatDate(twin.starts_on)} · {twin.city} · {twin.external_kind ?? 'manual'}</small></dd></div>
+                              </dl>
+                              <div className="adm-actions">
+                                <button type="button" className="adm-pill" disabled={busy} onClick={() => void change(async () => {
+                                  const { error } = await supabase!.rpc('merge_events', { duplicate: event.id, main: twin.id })
+                                  if (error) throw error
+                                  setOpenId(null)
+                                }, 'Eventos fusionados.')}>Fusionar en «{twin.short}»</button>
+                                <button type="button" className="adm-link" disabled={busy} onClick={() => void change(async () => {
+                                  const { error } = await supabase!.from('events').update({ duplicate_of: null }).eq('id', event.id)
+                                  if (error) throw error
+                                }, 'Marcado como evento distinto.')}>No es duplicado</button>
+                              </div>
+                            </div>
+                          )
+                        })()}
+                        <div className="adm-actions">
+                          <button type="button" className="adm-pill" disabled={busy || !event.city} title={event.city ? undefined : 'Añade la ciudad antes de publicar'}
+                            onClick={() => void change(async () => {
+                              const { error } = await supabase!.from('events').update({ status: 'published', duplicate_of: null }).eq('id', event.id)
+                              if (error) throw error
+                            }, 'Evento publicado.')}>Publicar</button>
+                          {!event.city && <small>Falta la ciudad: complétala abajo y guarda.</small>}
+                        </div>
+                      </div>
+                    )}
                     <EventForm key={event.id} event={event} orgs={orgs} busy={busy} onSave={row => change(async () => {
-                      const { id: _id, org_id: _org, ...patch } = row
-                      const { data, error } = await supabase!.from('events').update(patch).eq('id', event.id).select('id').single()
+                      const { data, error } = await supabase!.from('events').update(editableEvent(row)).eq('id', event.id).select('id').single()
                       if (error) throw error
                       if (!data) throw new Error('No se pudo actualizar el evento.')
                     }, 'Evento actualizado.')} />
@@ -137,7 +178,7 @@ function EventForm({ event, orgs, busy, onSave, onCancel }: {
 }) {
   const creating = !event
   const [draft, setDraft] = useState<AdminEvent>(event ?? {
-    id: '', org_id: orgs[0]?.id ?? '', name: '', short: '', city: '', starts_on: '', ends_on: null, url: null, kind: '', color: '#111113',
+    id: '', org_id: orgs[0]?.id ?? '', name: '', short: '', city: '', starts_on: '', ends_on: null, url: null, kind: '', color: '#111113', status: 'published',
   })
   const [idTouched, setIdTouched] = useState(false)
   const [problem, setProblem] = useState('')

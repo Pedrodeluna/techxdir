@@ -1,0 +1,24 @@
+/* /privacidad: una página de texto con el mismo encabezado que /entrar */
+
+.pv-main {
+  width: min(680px, calc(100vw - 32px));
+  margin: 0 auto;
+  padding: 8px 0 64px;
+  color: var(--ink);
+  line-height: 1.55;
+}
+.pv-main h1 { margin: 0 0 8px; font-size: clamp(28px, 5vw, 40px); letter-spacing: -.02em; }
+.pv-main h2 { margin: 32px 0 8px; font-size: 18px; }
+.pv-main p, .pv-main li { color: var(--muted-text); font-size: 15px; }
+.pv-main ul { padding-left: 20px; }
+.pv-lede { font-size: 17px; }
+.pv-hide {
+  margin-top: 40px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--card);
+  scroll-margin-top: 24px;
+}
+.pv-hide h2 { margin-top: 0; }
+.pv-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }

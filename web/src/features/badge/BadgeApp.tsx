@@ -7,6 +7,7 @@ import { BioPanel } from './panels/BioPanel'
 import { EventsPanel, type EventsTab } from './panels/EventsPanel'
 import { PeoplePanel, type PeopleTab } from './panels/PeoplePanel'
 import { ShareMenu } from './ShareMenu'
+import { DetectedEvents } from './DetectedEvents'
 import { useNotify } from './Toast'
 import { useBadgeStore } from './useBadgeStore'
 import { useAuth } from '../../lib/auth-context'
@@ -454,7 +455,7 @@ export function BadgeApp({ sample = false, embedded = false, summary, eventReque
       const target = ev.target as Element
       if (!currentRef.current || !target.isConnected) return
       if (embedded && target.closest('.lp-table, .event-atlas')) return
-      if (target.closest('.mover, .panel, .toast, .credits, .share, .share-menu, .sign-out, .map-access, .site-header')) return
+      if (target.closest('.mover, .panel, .toast, .credits, .share, .share-menu, .sign-out, .map-access, .site-header, .detected')) return
       closeRef.current()
     }
     // desde una ficha de evento u organización, Esc vuelve un paso atrás
@@ -553,13 +554,17 @@ export function BadgeApp({ sample = false, embedded = false, summary, eventReque
 
       <ShareMenu open={shareOpen} state={state} anchorRef={shareBtnRef} onClose={closeShare} />
 
+      {!sample && ready && <DetectedEvents state={state} notify={notify} />}
+
       {!embedded && <footer className="credits">
         {!sample && session && <><Link to="/organizaciones">Organizaciones</Link><span aria-hidden="true"> · </span></>}
         {!sample && isAdmin && <><Link to="/admin">Administración</Link><span aria-hidden="true"> · </span></>}
         A side project by{' '}
         <a href="https://x.com/pedrodelunah" target="_blank" rel="noopener noreferrer">@pedrodelunah</a>,{' '}
         <a href="https://x.com/franms_dev" target="_blank" rel="noopener noreferrer">@franms_dev</a>
-        {' '}and <a href="https://x.com/elashera" target="_blank" rel="noopener noreferrer">@elashera</a>
+        {', '}<a href="https://x.com/elashera" target="_blank" rel="noopener noreferrer">@elashera</a>
+        {' '}and <a href="https://x.com/Saulgmz_?s=20" target="_blank" rel="noopener noreferrer">@Saulgmz_</a>
+        <span aria-hidden="true"> · </span><Link to="/privacidad">Privacidad</Link>
       </footer>}
     </section>
   )

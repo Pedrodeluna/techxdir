@@ -313,8 +313,14 @@ function EventView({ id, state, backLabel, onBack, onOrg, onPerson, onToggle }: 
   const past = isPast(e)
   const on = state.myEvents.includes(e.id)
   const r = fmtRange(e)
-  const attendees = peopleOf(state).filter(p => p.events.includes(e.id)).sort((a, b) => a.name.localeCompare(b.name, 'es'))
+  const here = peopleOf(state).filter(p => p.events.includes(e.id))
+  const attendees = [
+    ...here.filter(p => !p.shadow).sort((a, b) => a.name.localeCompare(b.name, 'es')),
+    ...here.filter(p => p.shadow).sort((a, b) => a.name.localeCompare(b.name, 'es')),
+  ]
   const total = attendees.length + (on ? 1 : 0)
+  // Luma cuenta también a quien no enseña su X: el resto, sin nombres.
+  const unnamed = Math.max(0, (e.guestCount ?? 0) - total)
   const { me } = state
 
   return (
@@ -359,16 +365,20 @@ function EventView({ id, state, backLabel, onBack, onOrg, onPerson, onToggle }: 
         {attendees.map(p => (
           <li className="att-item" key={p.id}>
             <button className="att att-open" type="button" data-person={p.id} aria-label={`Ver perfil de ${p.name}`} onClick={() => onPerson(p.id)}>
-              <Avatar name={p.name} />
+              <Avatar name={p.name} photo={p.avatar} />
               <span className="p-info">
                 <strong>{p.name}</strong>
                 <span>{p.handle && <span className="p-handle">@{p.handle}</span>}{p.handle && p.role ? ' · ' : ''}{p.role}</span>
               </span>
+              {p.shadow && <span className="tag tag-luma">Visto en Luma</span>}
               <span className="p-chev" aria-hidden="true">→</span>
             </button>
           </li>
         ))}
-        {!state.peopleLoading && !state.peopleError && !attendees.length && !on && <li className="empty">Nadie de tu red {past ? 'fue' : 'va'} todavía.</li>}
+        {!state.peopleLoading && !state.peopleError && unnamed > 0 && (
+          <li className="empty att-more">+{unnamed} {unnamed === 1 ? 'asistente más' : 'asistentes más'} en Luma</li>
+        )}
+        {!state.peopleLoading && !state.peopleError && !attendees.length && !on && !unnamed && <li className="empty">Nadie de tu red {past ? 'fue' : 'va'} todavía.</li>}
       </ul>
     </div>
   )

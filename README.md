@@ -27,6 +27,7 @@ You can also share the badge on X, copy a link to it, or use the native share sh
 - [Scripts](#scripts)
 - [Routes](#routes)
 - [Backend](#backend)
+- [Automatic import](#automatic-import)
 - [Deploy](#deploy)
 - [Design system](#design-system)
 - [Contributing](#contributing)
@@ -176,7 +177,9 @@ Run these from the repository root.
 | `npm run preview` | Serve the production build. |
 | `npm run supabase:start` | Start the local Supabase stack. |
 | `npm run supabase:functions` | Serve the edge functions with hot reload. |
-| `cd supabase/functions && deno task test` | Run the edge function tests. |
+| `cd supabase/functions && deno task test` | Run the edge function tests (`profile/` and `_shared/`). |
+| `psql "$DB_URL" -f scripts/seed-local-ingest.sql` | Load fake demo data for the import (a source, two events, three guests, one suggestion). Idempotent. Locally: `docker exec -i supabase_db_techxdir psql -U postgres -d postgres -v ON_ERROR_STOP=1 < scripts/seed-local-ingest.sql`. |
+| `node scripts/luma-mock.mjs` | Serve fake Luma data on port 55399 so add-by-URL, source sync and guest reads work without calling Luma. Set `LUMA_API_BASE=http://host.docker.internal:55399` in `supabase/functions/.env` and restart the functions. It knows `luma.com/demo-ia-madrid`, `luma.com/demo-suggested` and `luma.com/demo-hackathon-agentes`. |
 | `cd web && node --test tests/*.test.ts` | Run the frontend and Vercel function tests. |
 
 ## Routes
@@ -190,6 +193,9 @@ Run these from the repository root.
 | `/acreditacion` | Signed in | Your badge (open to everyone in demo mode) |
 | `/acreditacion/<handle>` | Public | Shared badge: the badge image and a link to create one. Served by `web/api/badge.ts` on Vercel and by the same handler through Vite during `npm run dev` so that X (and any other link preview) can read its `og:` and `twitter:` tags. |
 | `/organizaciones` | Signed in | Organization directory. Admins create and delete organizations; admins and organization managers edit names, logos and managers. |
+| `/privacidad` | Public | Privacy notice, and how to hide yourself from detected attendance (`#ocultarme`). |
+| `/admin/fuentes` | Admins | Event sources (add by URL, pause, sync, remove) and discovery suggestions. |
+| `/admin/sincronizacion` | Admins | Launch syncs, Luma coverage, settings and the latest runs. |
 
 ## Backend
 
@@ -202,7 +208,16 @@ Run these from the repository root.
 | `org_managers` | Who manages each organization | Public read. Managers add and remove managers; an organization always keeps one. |
 | `events` | Events, with dates, city, URL and kind | Public read. Managers create, edit and delete their organization's events. Organizers edit their event. |
 | `profiles` | One row per user, created by a trigger on the first sign-in | Public read. Each user updates only their own row. The X handle cannot change once set. |
+| `event_sources` | Luma calendars and Meetup iCal feeds that feed an organization's events | Managers and admins manage their organization's sources. |
+| `import_suggestions` | Calendars and events found by discovery, waiting for an admin | Admins only. |
+| `external_people` | Luma guests who are not linked to an account ("shadows") | Not readable by clients; exposed through RPCs. |
+| `event_guests` | Guests read from Luma for each event | Not readable by clients; exposed through RPCs. |
+| `suppressed_handles` | X handles that asked not to appear as detected | Not readable by clients. |
+| `sync_runs` | Log of each import job | Admins only. |
+| `app_settings` | Switches such as `guest_ingest_enabled` | Admins only. |
 | `attendances` | Which profile went to which event, as `attendee` or `organizer` | Signed-in read. Each user adds or removes only their own rows, as `attendee`. Managers choose the organizers of their events. |
+
+`events.status` is `draft`, `published`, `canceled` or `merged`; only published events are shown. `attendances.status` is `confirmed` or `detected` (a guest seen on Luma whom the person has not confirmed yet).
 
 The app derives contacts from shared attendance. There is no follow table.
 
@@ -258,6 +273,16 @@ The function runs as the caller (it forwards their JWT), so row level security a
 curl http://127.0.0.1:55321/functions/v1/profile \
   -H "Authorization: Bearer <user access token>"
 ```
+
+## Automatic import
+
+Events and attendees are imported automatically. The full design is in [`docs/spec-auto-ingest.md`](docs/spec-auto-ingest.md).
+
+- **Sources.** A Luma calendar or a Meetup group (iCal). Paste its URL in `/admin/fuentes`, or in `/organizaciones` for your own organization. A single Luma event URL enters as a draft to review in `/admin/eventos` ("Por revisar"), where possible duplicates can be merged.
+- **Schedule (`pg_cron`, UTC).** Sources hourly from 04:00 to 07:00 (only those not synced in the last 20 h), discovery on Mondays at 04:30, guests every hour at minute 15 (events not read in the last 6 h), retention on the 1st of each month at 03:00.
+- **Secrets.** `pg_cron` calls the functions with a shared secret. Store the project URL and the secret in the vault (`vault.create_secret('https://<project>.supabase.co', 'project_url')` and `vault.create_secret('<secret>', 'cron_secret')`) and set the same value for the functions: `supabase secrets set CRON_SECRET=...`.
+- **Auth.** Add the return URL `.../auth/callback**` to the allowed redirect URLs in Supabase Auth.
+- **Guests.** The switch `guest_ingest_enabled` in `app_settings` (also in `/admin/sincronizacion`) turns the reading of Luma's public guest sample on or off.
 
 ## Deploy
 

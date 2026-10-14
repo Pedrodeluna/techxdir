@@ -12,7 +12,7 @@ const server = await createServer({
   optimizeDeps: { noDiscovery: true, include: [] },
 })
 try {
-  const { loadPeople, peopleFromRows } = await server.ssrLoadModule('/src/features/badge/people.ts')
+  const { loadPeople, peopleFromRows, shadowsFromRows } = await server.ssrLoadModule('/src/features/badge/people.ts')
   const { contacts, others, peopleOf, shareText, DEFAULT_ME, PEOPLE } = await server.ssrLoadModule('/src/features/badge/model.ts')
   const { PeoplePanel, PersonView } = await server.ssrLoadModule('/src/features/badge/panels/PeoplePanel.tsx')
   const event = (id, date) => ({ id, date, name: `Evento ${id}`, org: 'org', short: id, city: 'Madrid', end: null, url: null, kind: 'Comunidad', color: '#111' })
@@ -40,6 +40,18 @@ try {
   assert.deepEqual(peopleOf(state).filter(p => p.events.includes('real-a')).map(p => p.id), ['ana'])
   assert.match(shareText(state), /2 personas/)
 
+  // Sombras de Luma: una por invitado, sin la propia, en contactos pero no en "el resto".
+  const shadows = shadowsFromRows([
+    { event_id: 'real-a', person_id: 'p1', handle: 'luma_one', name: 'Luma One', avatar_url: 'https://img/1', is_me: false },
+    { event_id: 'real-b', person_id: 'p1', handle: 'luma_one', name: 'Luma One', avatar_url: 'https://img/1', is_me: false },
+    { event_id: 'real-b', person_id: 'p2', handle: 'luma_two', name: '', avatar_url: null, is_me: false },
+    { event_id: 'real-a', person_id: 'p3', handle: 'luma_me', name: 'Me', avatar_url: null, is_me: true },
+  ])
+  assert.deepEqual(shadows.map(p => [p.id, p.events, p.shadow]), [['x:p1', ['real-a', 'real-b'], true], ['x:p2', ['real-b'], true]])
+  assert.equal(shadows[1].name, '@luma_two')
+  assert.ok(contacts(state.myEvents, [...people, ...shadows], catalog).some(p => p.id === 'x:p1'))
+  assert.ok(!others([], [...people, ...shadows], catalog).some(p => p.shadow))
+
   const panel = extra => renderToStaticMarkup(createElement(PeoplePanel, { state, bodyRef: { current: null }, tab: 'match', setTab() {}, ...extra }))
   assert.match(panel(), /Persona ana/)
   assert.match(panel(), /2 en común/)
@@ -60,11 +72,25 @@ try {
   const manyAttendances = manyProfiles.map(p => ({ profile_id: p.id, event_id: 'real-a' }))
   const calls = []
   function client(failedTable) {
-    return { from(table) {
+    return {
+    rpc(name) {
+      assert.equal(name, 'event_shadows')
+      let start, end
+      const query = {
+        range(a, b) { start = a; end = b; return query },
+        abortSignal() {
+          calls.push(['event_shadows', start, end])
+          return Promise.resolve(failedTable === 'event_shadows' ? { data: null, error: new Error('offline') } : { data: [], error: null })
+        },
+      }
+      return query
+    },
+    from(table) {
       let start, end
       const query = {
         select() { return query },
         neq(column, value) { assert.equal(value, 'me'); assert.equal(column, table === 'profiles' ? 'id' : 'profile_id'); return query },
+        eq(column, value) { assert.deepEqual([table, column, value], ['attendances', 'status', 'confirmed']); return query },
         order() { return query },
         range(a, b) { start = a; end = b; return query },
         abortSignal(signal) {
@@ -81,8 +107,8 @@ try {
   const loaded = await loadPeople(client(), 'me', new AbortController().signal)
   assert.equal(loaded.length, 501)
   assert.deepEqual(loaded[500].events, ['real-a'])
-  assert.equal(calls.length, 4)
-  for (const table of ['profiles', 'attendances']) {
+  assert.equal(calls.length, 5)
+  for (const table of ['profiles', 'attendances', 'event_shadows']) {
     await assert.rejects(loadPeople(client(table), 'me', new AbortController().signal), /offline/)
   }
   console.log('People regression checks passed: real matches, attendees, profiles, empty/error/loading states, account exclusion, pagination and request failures.')
