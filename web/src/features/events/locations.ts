@@ -22,20 +22,22 @@ const ISLAND_NAMES: Record<string, string> = {
   arrecife: 'Lanzarote', 'puerto del rosario': 'Fuerteventura',
 }
 
-// Only labels are offset. Pins stay at the projected city coordinates.
+// Bases stay at the projected city coordinates. Nearby pin heads fan out.
 const MARKER_LAYOUT: Record<string, {
   text: { dx: number; dy: number; anchor: 'start' | 'middle' | 'end' }
+  head?: { dx: number; dy: number; neighbor: string }
 }> = {
   'a coruna': { text: { dx: 25, dy: -25, anchor: 'start' } },
   'santiago de compostela': { text: { dx: 29, dy: -17, anchor: 'start' } },
   vigo: { text: { dx: -23, dy: -20, anchor: 'end' } },
   sevilla: { text: { dx: -24, dy: -24, anchor: 'end' } },
   cadiz: { text: { dx: -24, dy: -15, anchor: 'end' } },
-  malaga: { text: { dx: 14, dy: 22, anchor: 'start' } },
+  torremolinos: { text: { dx: -48, dy: -30, anchor: 'end' }, head: { dx: -26, dy: -34, neighbor: 'malaga' } },
+  malaga: { text: { dx: 48, dy: -30, anchor: 'start' }, head: { dx: 26, dy: -34, neighbor: 'torremolinos' } },
   granada: { text: { dx: 24, dy: -30, anchor: 'start' } },
 }
 
-export function cityPoint(city: string) {
+export function cityPoint(city: string, visibleCities: readonly string[] = []) {
   const key = city.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase()
   const point = CITIES[key]
   if (!point) return null
@@ -44,9 +46,14 @@ export function cityPoint(city: string) {
   const region = lat < 32 ? 'canarias' : lon > 1 && lat < 40.1 ? 'baleares' : 'peninsula'
   if (region === 'peninsula') { x = x * PENINSULA_SCALE + PENINSULA_OFFSET.x; y = y * PENINSULA_SCALE + PENINSULA_OFFSET.y }
   const layout = MARKER_LAYOUT[key]
+  const projected = { x: x - y * .16 + 60, y: x * .08 + y * .82 + 12 }
+  const headOffset = layout?.head
+  const crowded = headOffset && visibleCities.some(name =>
+    name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase() === headOffset.neighbor,
+  )
   return {
-    x: x - y * .16 + 60,
-    y: x * .08 + y * .82 + 12,
+    ...projected,
+    head: { x: projected.x + (crowded ? headOffset.dx : 0), y: projected.y + (crowded ? headOffset.dy : -24) },
     region, label: ISLAND_NAMES[key] ?? city, text: layout?.text,
   }
 }

@@ -18,7 +18,19 @@ assert.match(shareText({ me: {}, myEvents: ['real-event'], live: true, catalog }
 assert.equal(isPast({ ...event, date: '2000-01-01', end: '2099-01-01' }), false, 'Ongoing multi-day event is not past')
 assert.equal(cityPoint('Online'), null)
 assert.equal(cityPoint('Unknown city'), null)
-assert.deepEqual(cityPoint('Cáceres'), cityPoint(' caceres '))
+const caceres = cityPoint('Cáceres')
+const normalizedCaceres = cityPoint(' caceres ')
+assert.deepEqual([caceres.x, caceres.y], [normalizedCaceres.x, normalizedCaceres.y], 'City spelling does not change its coordinates')
+const crowdedCities = ['Málaga', 'Torremolinos']
+const malaga = cityPoint('Málaga', crowdedCities)
+const torremolinos = cityPoint('Torremolinos', crowdedCities)
+assert.ok(Math.hypot(malaga.head.x - torremolinos.head.x, malaga.head.y - torremolinos.head.y) > 46, 'Nearby markers have separate rings and click targets')
+for (const name of crowdedCities) {
+  const solo = cityPoint(name)
+  const crowded = cityPoint(name, crowdedCities)
+  assert.deepEqual([crowded.x, crowded.y], [solo.x, solo.y], 'Fanning pin heads preserves geographic bases')
+  assert.deepEqual(cityPoint(name, [name]).head, solo.head, 'Filtering out a neighbor restores the upright pin')
+}
 for (const city of ['Madrid', 'Barcelona', 'Alicante', 'Cáceres', 'Tenerife']) {
   const point = cityPoint(city)
   assert.ok(point && point.x > 0 && point.x < 760 && point.y > 50 && point.y < 570)

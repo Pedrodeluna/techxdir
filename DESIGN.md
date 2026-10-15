@@ -241,6 +241,8 @@ muestra debajo de las regiones y la página controla el scroll.
 Los pinchos del mapa llevan únicamente el nombre de la ciudad (o de la isla en
 los archipiélagos), sin contador junto a la etiqueta. En Galicia y Andalucía,
 las etiquetas se distribuyen a distintos lados para separar las localidades
-cercanas. Los pinchos mantienen las coordenadas proyectadas de cada ciudad,
-sin desplazamientos editoriales hacia el mar. Las posiciones siguen siendo
+cercanas. Las bases de los pinchos mantienen las coordenadas proyectadas de cada ciudad,
+sin desplazamientos editoriales hacia el mar. Cuando Málaga y Torremolinos aparecen
+juntas, sus cabezas se separan a ambos lados con tallos inclinados y nombres opuestos;
+al filtrar una sola ciudad, el pincho vuelve a ser vertical. Las posiciones siguen siendo
 aproximadas; el panel flotante se ancla al pincho que se muestra en pantalla.
