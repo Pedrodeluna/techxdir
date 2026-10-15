@@ -1,5 +1,6 @@
 """Exercise the production import on disposable PostgreSQL, never on Supabase."""
 from pathlib import Path
+import json
 import os
 import subprocess
 import tempfile
@@ -72,6 +73,34 @@ with tempfile.TemporaryDirectory(prefix='techxdir-import-test-') as directory:
         ambiguous = snapshot()
         assert load(check=False).returncode != 0
         assert snapshot() == ambiguous, 'Ambiguous matches must roll back the whole import'
+        autumn_file = repo / 'supabase/imports/20261011_autumn_public_events.sql'
+        sql('truncate events,orgs;')
+        load()
+        load(kernel_file)
+        previous = json.loads(snapshot())
+        load(autumn_file)
+        assert sql('select (select count(*) from orgs), (select count(*) from events)') == '39|41'
+        expanded = json.loads(snapshot())
+        for table in ['orgs', 'events']:
+            current = {row['id']: row for row in expanded[table]}
+            assert all(current[row['id']] == row for row in previous[table]), 'Existing catalog rows must survive'
+        assert sql("select count(*) from events where id like 'microsoft-agent-a-thon-%'") == '2', 'Shared URLs must preserve separate city editions'
+        assert sql("select count(*) from events where url like '%digital.gob.es%' or url like '%tech-all%'") == '0', 'Excluded events must not be imported'
+        imported = snapshot()
+        load(autumn_file)
+        assert snapshot() == imported, 'Repeat autumn import must be a no-op'
+        sql("update events set id='manual-devfest-santiago',name='Edited Santiago title',short='Custom' where id='devfest-santiago-26';")
+        edited_autumn = snapshot()
+        load(autumn_file)
+        assert snapshot() == edited_autumn, 'Same date/city/URL under an alternate ID must not duplicate'
+        sql("truncate events,orgs; insert into orgs(id,name) values ('manual-gdg',' GDG SANTIAGO DE COMPOSTELA ');")
+        load(autumn_file)
+        assert sql("select org_id from events where id='devfest-santiago-26'") == 'manual-gdg', 'Reuse an existing organization by normalized name'
+        sql("truncate events,orgs; insert into orgs(id,name) values ('gdg-one','GDG Santiago de Compostela'),('gdg-two','gdg santiago de compostela');")
+        ambiguous_autumn = snapshot()
+        assert load(autumn_file, check=False).returncode != 0
+        assert snapshot() == ambiguous_autumn, 'Ambiguous autumn organizations must roll back atomically'
         print('PASS: initial import, repeat, manual edits, new manual rows, duplicate IDs, alternate IDs, atomic rollback.')
+        print('PASS: autumn import, 33 events, exclusions, existing rows, shared URLs, repeat, alternate IDs, organization reuse, atomic rollback.')
     finally:
         run(['pg_ctl', '-D', str(root / 'data'), '-m', 'fast', '-w', 'stop'], check=True)

@@ -52,7 +52,7 @@ export function EventMap({ events, onOpen, expanded = false, searchable = false,
   )
   const cities = [...new Set(filtered.map(e => e.city))].sort((a, b) => a.localeCompare(b, 'es'))
   const selected = city && cities.includes(city) ? city : null
-  const selectedPoint = selected ? cityPoint(selected) : null
+  const selectedPoint = selected ? cityPoint(selected, cities) : null
   const shown = filtered.filter(e => !selected || e.city === selected)
   const located = filtered.filter(e => cityPoint(e.city)).length
   const cityEventsVisible = view === 'map' && Boolean(selected)
@@ -88,7 +88,7 @@ export function EventMap({ events, onOpen, expanded = false, searchable = false,
       const matrix = svg.getScreenCTM()
       if (!matrix) return
       const point = selectedPoint
-        ? new DOMPoint(selectedPoint.x, selectedPoint.y - 24).matrixTransform(matrix)
+        ? new DOMPoint(selectedPoint.head.x, selectedPoint.head.y).matrixTransform(matrix)
         : new DOMPoint(bounds.left + bounds.width / 2, bounds.top + 32)
       const x = point.x - bounds.left
       const y = point.y - bounds.top
@@ -111,7 +111,7 @@ export function EventMap({ events, onOpen, expanded = false, searchable = false,
     observer.observe(popup)
     window.addEventListener('resize', position)
     return () => { observer.disconnect(); window.removeEventListener('resize', position) }
-  }, [cityEventsVisible, selectedPoint?.x, selectedPoint?.y, shown.length])
+  }, [cityEventsVisible, selectedPoint?.head.x, selectedPoint?.head.y, shown.length])
 
   const eventRows = shown.map(e => (
     <article key={e.id} className="atlas-event">
@@ -178,7 +178,7 @@ export function EventMap({ events, onOpen, expanded = false, searchable = false,
               </g>)}
             </g>
                   {cities.map(name => {
-                    const p = cityPoint(name)
+                    const p = cityPoint(name, cities)
                     if (!p) return null
                     const islandCities = cities.filter(city => cityPoint(city)?.region === p.region)
                       .sort((a, b) => cityPoint(a)!.x - cityPoint(b)!.x)
@@ -199,11 +199,11 @@ export function EventMap({ events, onOpen, expanded = false, searchable = false,
                         if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); selectCity(name, event.currentTarget) }
                       }}>
                       <title>{p.label}: {count} eventos</title>
-                      <circle cx={p.x} cy={p.y - 24} r="23" fill="transparent" />
-                      <path d={`M${p.x} ${p.y}v-24`} stroke="currentColor" />
+                      <circle cx={p.head.x} cy={p.head.y} r="23" fill="transparent" />
+                      <path d={`M${p.x} ${p.y}L${p.head.x} ${p.head.y}`} stroke="currentColor" />
                       <ellipse cx={p.x} cy={p.y} rx="9" ry="3" className="atlas-pin-base" />
-                      <circle cx={p.x} cy={p.y - 24} r="13" className="atlas-pin-ring" />
-                      <circle cx={p.x} cy={p.y - 24} r={active ? 6 : 4} className="atlas-dot" />
+                      <circle cx={p.head.x} cy={p.head.y} r="13" className="atlas-pin-ring" />
+                      <circle cx={p.head.x} cy={p.head.y} r={active ? 6 : 4} className="atlas-dot" />
                       {p.region !== 'peninsula' && <path className="atlas-label-line" d={`M${p.x} ${p.y + 6}L${label.x} ${label.y - 13}`} />}
                       <text className={p.region === 'peninsula' ? 'atlas-pin-name' : 'atlas-pin-name atlas-island-name'} x={label.x} y={label.y} textAnchor={label.anchor}>{p.label}</text>
                     </g>
@@ -240,7 +240,7 @@ export function EventMap({ events, onOpen, expanded = false, searchable = false,
           </div>
         </div>
       </div>
-      <footer className="atlas-foot"><span>{located} en el mapa · {filtered.length - located} online o sin ubicación en el mapa</span><span>Consulta los detalles con cada organizador.</span></footer>
+      <footer className="atlas-foot"><span>{located} en el mapa · {filtered.length - located} online o sin ubicación en el mapa</span><span>En el mapa se muestra únicamente los eventos futuros</span></footer>
     </section>
   )
 }
