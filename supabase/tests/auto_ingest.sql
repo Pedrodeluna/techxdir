@@ -99,6 +99,59 @@ begin
   if r ->> 'status' <> 'draft' then raise exception 'event moved abroad stayed published: %', r; end if;
 end $$;
 
+-- ingest_event adopts the one event entered by hand that day, even renamed.
+insert into public.events (id, org_id, name, short, city, starts_on, url, kind, color) values
+  ('test-ingest-manual-003', 'test-ingest-org', 'TEST 003 • BDS', 'TEST 003 • BDS', 'Valencia', '2030-05-07', 'https://example.com/es', 'Meetup', '#111113'),
+  ('test-ingest-manual-a', 'test-ingest-org', 'Mañana A', 'Mañana A', 'Madrid', '2030-05-08', null, 'Meetup', '#111113'),
+  ('test-ingest-manual-b', 'test-ingest-org', 'Tarde B', 'Tarde B', 'Madrid', '2030-05-08', null, 'Meetup', '#111113');
+do $$
+declare r jsonb; e public.events;
+begin
+  r := public.ingest_event(jsonb_build_object(
+    'external_kind', 'luma', 'external_id', 'evt-test-adopt', 'org_id', 'test-ingest-org',
+    'source_id', '00000000-0000-4000-8000-0000000000e1', 'id_base', 'test-ingest-build-night-30',
+    'name', 'TEST 003 × SOTI · BUILD NIGHT', 'short', 'TEST 003 × SOTI', 'url', 'https://luma.com/test-adopt',
+    'starts_at', '2030-05-07T16:30:00Z', 'city', 'Valencia', 'country', 'ES'));
+  select * into e from public.events where id = 'test-ingest-manual-003';
+  if r ->> 'action' <> 'updated' or r ->> 'adopted' <> 'true' or r ->> 'id' <> 'test-ingest-manual-003' then
+    raise exception 'manual event not adopted: %', r;
+  end if;
+  if e.external_id <> 'evt-test-adopt' or e.name <> 'TEST 003 × SOTI · BUILD NIGHT' or e.short <> 'TEST 003 × SOTI'
+    or e.url <> 'https://luma.com/test-adopt' or e.source_id is null or e.status <> 'published' then
+    raise exception 'adopted event not updated: %', row_to_json(e);
+  end if;
+  if exists (select 1 from public.events where external_id = 'evt-test-adopt' and id <> 'test-ingest-manual-003') then
+    raise exception 'adoption created a second event';
+  end if;
+  -- Next sync finds it by its id like any other.
+  r := public.ingest_event(jsonb_build_object(
+    'external_kind', 'luma', 'external_id', 'evt-test-adopt', 'org_id', 'test-ingest-org',
+    'source_id', '00000000-0000-4000-8000-0000000000e1', 'name', 'TEST 003 × SOTI · BUILD NIGHT',
+    'url', 'https://luma.com/test-adopt', 'starts_at', '2030-05-07T16:30:00Z', 'city', 'Valencia', 'country', 'ES'));
+  if r ->> 'action' <> 'unchanged' then raise exception 'adopted event not found again: %', r; end if;
+
+  -- Two hand-made events that day: no guessing, the newcomer is created.
+  r := public.ingest_event(jsonb_build_object(
+    'external_kind', 'luma', 'external_id', 'evt-test-ambiguous', 'org_id', 'test-ingest-org',
+    'source_id', '00000000-0000-4000-8000-0000000000e1', 'id_base', 'test-ingest-noche-c-30',
+    'name', 'Noche C', 'starts_at', '2030-05-08T18:00:00Z', 'city', 'Madrid', 'country', 'ES'));
+  if r ->> 'action' <> 'created' then raise exception 'ambiguous day was adopted: %', r; end if;
+  if (select count(*) from public.events where id in ('test-ingest-manual-a', 'test-ingest-manual-b') and external_id is null) <> 2 then
+    raise exception 'an ambiguous hand-made event was changed';
+  end if;
+
+  -- Another organization never takes it over.
+  insert into public.events (id, org_id, name, short, city, starts_on, kind, color)
+  values ('test-ingest-manual-other', 'test-ingest-other-org', 'Otra', 'Otra', 'Bilbao', '2030-05-09', 'Meetup', '#111113');
+  r := public.ingest_event(jsonb_build_object(
+    'external_kind', 'luma', 'external_id', 'evt-test-cross', 'org_id', 'test-ingest-org',
+    'source_id', '00000000-0000-4000-8000-0000000000e1', 'id_base', 'test-ingest-cross-30',
+    'name', 'Otra cosa', 'starts_at', '2030-05-09T18:00:00Z', 'city', 'Bilbao', 'country', 'ES'));
+  if r ->> 'action' <> 'created' or (select external_id from public.events where id = 'test-ingest-manual-other') is not null then
+    raise exception 'an event of another organization was adopted: %', r;
+  end if;
+end $$;
+
 -- ingest_guests: stores handles, skips the rest, links verified handles only.
 insert into public.suppressed_handles (handle) values ('ti_hidden');
 do $$
