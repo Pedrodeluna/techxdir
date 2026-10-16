@@ -21,7 +21,7 @@ const CITIES: Record<string, [number, number]> = {
   castellon: [-0.051, 39.986], girona: [2.821, 41.979], tarragona: [1.245, 41.119],
   vitoria: [-2.672, 42.846], leon: [-5.567, 42.599], lleida: [0.62, 41.614],
   segovia: [-4.118, 40.948], toledo: [-4.027, 39.863], 'jerez de la frontera': [-6.137, 36.686],
-  'san vicente del raspeig': [-0.525, 38.396],
+  'san vicente del raspeig': [-0.525, 38.396], ourense: [-7.864, 42.336],
 }
 const ISLAND_NAMES: Record<string, string> = {
   palma: 'Mallorca', ibiza: 'Ibiza', mahon: 'Menorca',
@@ -37,7 +37,9 @@ const MARKER_LAYOUT: Record<string, {
   text?: Label
   head?: { dx: number; dy: number; neighbor: string; text?: Label }
 }> = {
-  'a coruna': { text: { dx: 25, dy: -25, anchor: 'start' } },
+  'a coruna': { text: { dx: 25, dy: -25, anchor: 'start' },
+    head: { dx: -44, dy: -36, neighbor: 'santiago de compostela', text: { dx: -66, dy: -30, anchor: 'end' } } },
+  ourense: { head: { dx: 18, dy: -8, neighbor: 'santiago de compostela', text: { dx: 40, dy: -2, anchor: 'start' } } },
   'santiago de compostela': { text: { dx: 29, dy: -17, anchor: 'start' } },
   vigo: { text: { dx: -23, dy: -20, anchor: 'end' } },
   sevilla: { text: { dx: -24, dy: -24, anchor: 'end' } },
