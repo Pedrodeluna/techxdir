@@ -1,7 +1,10 @@
 -- Verified 2026-10-19: Refugio and in-person Spanish Exponential events since June.
 -- Sources and exclusions: docs/event-sources.md (Refugio / Exponential).
--- The Supabase migration runner owns the transaction. Insert only: never
--- overwrite manual edits, activate ingestion or create attendance/permissions.
+-- One DO statement keeps locks, temporary tables and inserts in one atomic
+-- operation even when the runner does not supply an outer transaction.
+-- Insert only: never overwrite edits, activate ingestion or create permissions.
+do $catalog$
+begin
 set local lock_timeout = '5s';
 set local statement_timeout = '30s';
 lock table public.orgs, public.events in share row exclusive mode;
@@ -13,8 +16,6 @@ insert into event_catalog_orgs (id, name) values
   ('expresso-talks', 'Expresso Talks');
 
 -- Fail atomically rather than attach events to an ambiguous organization.
-do $$
-begin
   if exists (
     select 1 from event_catalog_orgs s
     where (select count(*) from public.orgs o
@@ -22,8 +23,6 @@ begin
   ) then
     raise exception 'Ambiguous organization: resolve catalog matches before migrating';
   end if;
-end;
-$$;
 
 create temporary table event_catalog_org_map on commit drop as
 select s.id, coalesce(
@@ -73,3 +72,5 @@ where not exists (
                 = rtrim(regexp_replace(s.url, '^https?://(lu.ma|luma.com)/', 'https://luma.com/'), '/')))
 )
 on conflict (id) do nothing;
+end;
+$catalog$;
