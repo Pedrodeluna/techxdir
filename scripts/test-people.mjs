@@ -64,7 +64,7 @@ try {
   }))
   assert.match(badge, /<img[^>]+src="https:\/\/example.com\/ana.jpg"/)
   assert.match(badge, />PB<\/span>/)
-  assert.match(badge, /Compartir acreditación/)
+  assert.match(badge, /<span class="share-btn-label">Compartir acreditación<\/span><svg/)
   assert.match(badge, /aria-haspopup="menu" aria-controls="shareMenu" aria-expanded="false"/)
   assert.match(panel(), /Persona ana/)
   assert.match(panel(), /2 en común/)

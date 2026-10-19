@@ -96,8 +96,8 @@ export function BadgeFront({ faceRef, state, current, shareOpen, shareBtnRef, on
           title={cardId(me)}
           onClick={onShare}
         >
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m0 0L7.5 7.5M12 3l4.5 4.5M5 11v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8" /></svg>
-          Compartir acreditación
+          <span className="share-btn-label">Compartir acreditación</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 18 18 6M6 6h12v12" /></svg>
         </button>
         <span className="tier">Desde {joinedYear(me)}</span>
       </div>

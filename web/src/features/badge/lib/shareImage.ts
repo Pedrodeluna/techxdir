@@ -10,6 +10,26 @@ const cssVar = (name: string, fallback: string) =>
 const toPng = (canvas: HTMLCanvasElement) =>
   new Promise<Blob>((resolve, reject) => canvas.toBlob(b => (b ? resolve(b) : reject(new Error('sin imagen'))), 'image/png'))
 
+/** Load only export-safe images; a slow or blocked avatar must not prevent sharing. */
+function loadContactPhoto(url?: string | null): Promise<HTMLImageElement | null> {
+  if (!url || !/^(https?:|data:image\/|blob:)/i.test(url)) return Promise.resolve(null)
+  return new Promise(resolve => {
+    const image = new Image()
+    image.crossOrigin = 'anonymous'
+    const finish = (value: HTMLImageElement | null) => {
+      clearTimeout(timer)
+      image.onload = null
+      image.onerror = null
+      if (!value) image.src = ''
+      resolve(value)
+    }
+    const timer = setTimeout(() => finish(null), 5000)
+    image.onload = () => finish(image.naturalWidth > 0 && image.naturalHeight > 0 ? image : null)
+    image.onerror = () => finish(null)
+    image.src = xProfilePhoto(url)
+  })
+}
+
 // Dibuja la acreditación en un PNG 1080×1350 (formato 4:5, el que mejor encaja en redes)
 export async function renderCardImage(state: BadgeState): Promise<Blob> {
   return toPng(await drawCard(state))
@@ -208,8 +228,11 @@ async function drawCard(state: BadgeState): Promise<HTMLCanvasElement> {
   text(people.length === 1 ? 'persona' : 'personas', P + nw + 10, 1016, `400 28px ${SANS}`, MUTED)
 
   const AV = 62
-  const avs = people.slice(0, 4).map(p => ({ label: initials(p.name), fill: `hsl(40 6% ${70 + (hash(p.name) % 20)}%)`, color: INK }))
-  if (people.length > 4) avs.push({ label: `+${people.length - 4}`, fill: INK, color: CARD })
+  const avs = await Promise.all(people.slice(0, 4).map(async p => ({
+    label: initials(p.name), fill: `hsl(40 6% ${70 + (hash(p.name) % 20)}%)`, color: INK,
+    image: await loadContactPhoto(p.avatar),
+  })))
+  if (people.length > 4) avs.push({ label: `+${people.length - 4}`, fill: INK, color: CARD, image: null })
   avs.forEach((a, i) => {
     const x = cw - P - AV / 2 - (avs.length - 1 - i) * (AV - 14)
     const y = 992
@@ -217,14 +240,24 @@ async function drawCard(state: BadgeState): Promise<HTMLCanvasElement> {
     g.arc(x, y, AV / 2, 0, Math.PI * 2)
     g.fillStyle = a.fill
     g.fill()
+    if (a.image) {
+      g.save()
+      g.clip()
+      const scale = Math.max(AV / a.image.naturalWidth, AV / a.image.naturalHeight)
+      const width = a.image.naturalWidth * scale
+      const height = a.image.naturalHeight * scale
+      g.drawImage(a.image, x - width / 2, y - height / 2, width, height)
+      g.restore()
+    } else {
+      g.font = `500 21px ${SANS}`
+      g.fillStyle = a.color
+      g.textAlign = 'center'
+      g.textBaseline = 'middle'
+      g.fillText(a.label, x, y + 1)
+    }
     g.lineWidth = 4
     g.strokeStyle = CARD
     g.stroke()
-    g.font = `500 21px ${SANS}`
-    g.fillStyle = a.color
-    g.textAlign = 'center'
-    g.textBaseline = 'middle'
-    g.fillText(a.label, x, y + 1)
   })
 
   // pie
