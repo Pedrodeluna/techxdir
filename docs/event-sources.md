@@ -163,3 +163,32 @@ Notas: People Behind AI requiere invitación. Talent4Cyber es universitario y on
 Resultado en producción (`hwerwvjndbufjcswlgpo`), verificado el 11 de octubre de 2026: 33 eventos y 32 organizaciones/agrupaciones añadidos; total 44 eventos y 40 organizaciones. La API pública anónima devuelve todas las filas y sus campos coinciden con la consulta SQL. Los 11 eventos y 8 organizaciones anteriores se conservaron exactamente, y los recuentos de perfiles, asistencias, gestores, administradores y bloqueos permanecieron iguales. Ninguno de los dos eventos excluidos está presente.
 
 Validación previa: `python3 scripts/test-catalog-import.py` pasó en PostgreSQL desechable, incluyendo repetición sin cambios, conservación de filas, URL compartida entre ciudades, IDs alternativos, reutilización de organización y rollback por ambigüedad. No se ha realizado revisión visual del catálogo en el navegador.
+
+## Refugio / Exponential · junio–octubre de 2026
+
+Verificación: 19 de octubre de 2026. Se revisaron los 21 enlaces individuales
+publicados en https://www.goexponential.org/events, además de la web de Refugio.
+
+| Evento | Fecha de 2026 | Ciudad | Fuente |
+| --- | --- | --- | --- |
+| Refugio Madrid 2026 | 27 junio | Madrid | https://refugiomadrid.com/ |
+| Exponential Beers · Iñaki Berenguer | 22 septiembre | Madrid | https://lu.ma/bq85iasm |
+| Exponential Beers · François Derbaix | 28 septiembre | Madrid | https://lu.ma/pz3otdck |
+| Expresso Talks · Pablo Castro y Reyders Morales | 15 octubre | Santiago de Compostela | https://lu.ma/6lzs6hsy |
+
+Se excluyen los eventos anteriores al 1 de junio de 2026, los cinco de San
+Francisco y el encuentro de becas del MIT (7 de octubre), que fue online.
+El índice consultado no contenía eventos futuros. Las páginas individuales de
+Luma confirman fechas, horarios e identidades externas; Refugio confirma inicio
+a las 09:00 en Mad Tech Campus, Matadero Madrid, pero no una hora final.
+
+A diferencia de los archivos manuales en `supabase/imports/`, esta incorporación
+viaja en `supabase/migrations/20261019180000_refugio_exponential_events.sql`.
+La integración de Supabase la aplicará al fusionar la PR en `main`, si sigue
+habilitado el despliegue de producción. No se ejecuta un despliegue remoto desde
+esta tarea. La migración solo inserta filas ausentes: conserva los datos
+existentes, reconoce IDs externos y enlaces Luma equivalentes, reutiliza
+organizaciones por nombre y rechaza coincidencias ambiguas de forma atómica.
+No modifica asistentes, permisos ni tareas de ingesta.
+
+Prueba aislada: `python3 scripts/test-refugio-exponential-migration.py`.
