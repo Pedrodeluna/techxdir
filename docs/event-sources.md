@@ -192,3 +192,16 @@ organizaciones por nombre y rechaza coincidencias ambiguas de forma atómica.
 No modifica asistentes, permisos ni tareas de ingesta.
 
 Prueba aislada: `python3 scripts/test-refugio-exponential-migration.py`.
+
+
+### Corrección del despliegue · 19 de octubre de 2026
+
+El despliegue de la PR #54 intentó ejecutar la migración, pero falló con
+`LOCK TABLE can only be used in transaction blocks`. La prueba original añadía
+`psql --single-transaction`, por lo que no detectaba ese comportamiento.
+La migración pendiente se corrige sin cambiar su versión: un único bloque `DO`
+agrupa los bloqueos, las tablas temporales y las inserciones en una operación
+atómica, tanto con una transacción externa como sin ella. No se cambia el
+historial de migraciones ni se marca manualmente como aplicada.
+La regresión ejecuta el archivo sin forzar transacciones y comprueba además que
+un error posterior a la creación de organizaciones deshace toda la operación.

@@ -27,8 +27,13 @@ with tempfile.TemporaryDirectory(prefix='techxdir-event-migration-') as director
         args = ['psql', '-X', '-h', str(root), '-p', '55441', '-U', 'postgres', '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-Atq']
         def sql(query):
             return run(args, input=query, check=True).stdout.strip()
-        def load(check=True):
-            return run(args + ['--single-transaction', '-f', str(migration)], check=check)
+        def load(check=True, transactional=False):
+            # Default to autocommit: do not supply the transaction the deployment lacked.
+            flags = ['--single-transaction'] if transactional else []
+            result = run(args + flags + ['-f', str(migration)])
+            if check:
+                assert result.returncode == 0, result.stderr
+            return result
         def snapshot():
             return json.loads(sql("select jsonb_build_object('orgs',(select coalesce(jsonb_agg(o order by id),'[]') from orgs o),'events',(select coalesce(jsonb_agg(e order by id),'[]') from events e));"))
         sql(base + 'create table public.event_sources(id uuid primary key);' + event_schema)
@@ -51,6 +56,8 @@ with tempfile.TemporaryDirectory(prefix='techxdir-event-migration-') as director
         assert sql("select starts_at = '2026-09-22T19:30:00+02:00'::timestamptz and ends_at = '2026-09-22T21:30:00+02:00'::timestamptz from events where id='exponential-bq85iasm'") == 't'
         load()
         assert snapshot() == after, 'Repetition must be a no-op'
+        load(transactional=True)
+        assert snapshot() == after, 'An outer transaction must also remain supported'
         sql("update events set name='Manually edited',city='Bilbao',starts_on='2027-01-01' where id='refugio-madrid-20260627'; update orgs set name='Custom name' where id='refugio';")
         edited = snapshot()
         load()
@@ -68,6 +75,17 @@ with tempfile.TemporaryDirectory(prefix='techxdir-event-migration-') as director
         result = load(check=False)
         assert result.returncode != 0 and 'Ambiguous organization' in result.stderr
         assert snapshot() == ambiguous, 'Rejected ambiguous import must leave all data unchanged'
+        # Reject after organizations were inserted: the entire import must roll back.
+        sql('truncate events,orgs;')
+        sql("""create function reject_catalog_event() returns trigger language plpgsql as $$
+            begin raise exception 'Forced event insert failure'; end; $$;
+            create trigger reject_catalog_event before insert on events
+            for each row execute function reject_catalog_event();""")
+        before_failure = snapshot()
+        result = load(check=False)
+        assert result.returncode != 0 and 'Forced event insert failure' in result.stderr
+        assert snapshot() == before_failure, 'A late failure must also roll back organization inserts'
+        print('PASS: autocommit and outer transaction, late-failure rollback')
         print('PASS: four verified events, existing data, times, repeat, manual edits, alternate IDs/URLs, org reuse and atomic rejection')
     finally:
         run(['pg_ctl', '-D', str(root / 'data'), '-m', 'fast', '-w', 'stop'], check=True)
