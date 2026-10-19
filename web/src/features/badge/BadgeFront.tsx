@@ -78,7 +78,7 @@ export function BadgeFront({ faceRef, state, current, shareOpen, shareBtnRef, on
           <span className="people-row">
             <span><strong className="num">{people.length}</strong><span className="unit">{people.length === 1 ? 'persona' : 'personas'}</span></span>
             <span className="stack">
-              {shown.map(p => <Avatar key={p.id} name={p.name} />)}
+              {shown.map(p => <Avatar key={p.id} name={p.name} photo={p.avatar} />)}
               {people.length > shown.length && <span className="av more">+{people.length - shown.length}</span>}
             </span>
           </span>
@@ -97,7 +97,7 @@ export function BadgeFront({ faceRef, state, current, shareOpen, shareBtnRef, on
           onClick={onShare}
         >
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m0 0L7.5 7.5M12 3l4.5 4.5M5 11v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8" /></svg>
-          Compartir
+          Compartir acreditación
         </button>
         <span className="tier">Desde {joinedYear(me)}</span>
       </div>
