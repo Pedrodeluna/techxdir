@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useId, useRef, useState } from 'react'
 import type { TechEvent } from '../../data/sample'
 import { fmtRange, isPast } from '../badge/model'
+import { EventCalendar } from './EventCalendar'
 import { CitySelect } from './CitySelect'
 import { SPAIN_OUTLINE } from './spain-outline'
 import { cityPoint, PENINSULA_OFFSET, PENINSULA_SCALE } from './locations'
@@ -12,7 +13,7 @@ const landParts = (SPAIN_OUTLINE.match(/M[^M]+/g) ?? []).map(path => {
   return { path, mainland: y < 480 && !(x > 550 && y > 280) }
 })
 
-interface MapFilters { city: string | null; period: string; view: 'map' | 'list'; query: string }
+interface MapFilters { city: string | null; period: string; view: 'map' | 'list' | 'calendar'; query: string }
 function readFilters(key?: string): MapFilters {
   const fallback: MapFilters = { city: null, period: 'next', view: 'map', query: '' }
   if (!key) return fallback
@@ -20,8 +21,8 @@ function readFilters(key?: string): MapFilters {
     const saved = JSON.parse(sessionStorage.getItem(key) ?? 'null')
     if (!saved) return fallback
     return { city: typeof saved.city === 'string' ? saved.city : null,
-      period: saved.view === 'list' && ['all', 'next', 'past'].includes(saved.period) ? saved.period : 'next',
-      view: saved.view === 'list' ? 'list' : 'map', query: typeof saved.query === 'string' ? saved.query : '' }
+      period: (saved.view === 'list' || saved.view === 'calendar') && ['all', 'next', 'past'].includes(saved.period) ? saved.period : 'next',
+      view: saved.view === 'calendar' ? 'calendar' : saved.view === 'list' ? 'list' : 'map', query: typeof saved.query === 'string' ? saved.query : '' }
   } catch { return fallback }
 }
 
@@ -32,7 +33,7 @@ export function EventMap({ events, onOpen, expanded = false, searchable = false,
   const [initial] = useState(() => readFilters(persistenceKey))
   const [city, setCity] = useState<string | null>(initial.city)
   const [period, setPeriod] = useState(initial.period)
-  const [view, setView] = useState<'map' | 'list'>(initial.view)
+  const [view, setView] = useState<'map' | 'list' | 'calendar'>(initial.view)
   const [query, setQuery] = useState(initial.query)
   const popupRef = useRef<HTMLDivElement>(null)
   const mapStageRef = useRef<HTMLDivElement>(null)
@@ -129,7 +130,7 @@ export function EventMap({ events, onOpen, expanded = false, searchable = false,
           {expanded ? <><h1 id={`${id}-title`}>Mapa y eventos.</h1><p className="atlas-intro">Encuentra tu próximo encuentro. Explora por ciudad o recorre la agenda.</p></> : <h2 id={`${id}-title`}>Nos vemos por aquí.</h2>}
         </div>
         <div className="atlas-filters" aria-label="Fechas de los eventos">
-          {[['all', 'Todos'], ['next', 'Próximos'], ['past', 'Celebrados']].filter(([value]) => view === 'list' || value !== 'all').map(([value, label]) => <button type="button" className="pill" key={value} aria-pressed={period === value} onClick={() => { setPeriod(value); if (value === 'past') setView('list') }}>{label}</button>)}
+          {[['all', 'Todos'], ['next', 'Próximos'], ['past', 'Celebrados']].filter(([value]) => view !== 'map' || value !== 'all').map(([value, label]) => <button type="button" className="pill" key={value} aria-pressed={period === value} onClick={() => { setPeriod(value); if (value === 'past' && view === 'map') setView('list') }}>{label}</button>)}
         </div>
       </header>
       <div className="atlas-controls">
@@ -149,6 +150,7 @@ export function EventMap({ events, onOpen, expanded = false, searchable = false,
         <div className="atlas-view-switch" role="group" aria-label="Vista de eventos">
           <button type="button" aria-pressed={view === 'map'} aria-controls={`${id}-map`} onClick={() => { setPeriod('next'); setView('map') }}>Mapa</button>
           <button ref={listButtonRef} type="button" aria-pressed={view === 'list'} aria-controls={`${id}-list`} onClick={showList}>Lista</button>
+          <button type="button" aria-pressed={view === 'calendar'} aria-controls={`${id}-calendar`} onClick={() => setView('calendar')}>Calendario</button>
         </div>
         <span className="label" aria-live="polite">{shown.length} eventos{selected ? ` · ${selected}` : ''}</span>
       </div>
@@ -233,6 +235,7 @@ export function EventMap({ events, onOpen, expanded = false, searchable = false,
             <button type="button" className="link" onClick={showList}>{selected ? 'Ver solo la lista →' : `Ver ${shown.length} eventos →`}</button>
           </div>
         </div>
+        <div id={`${id}-calendar`} hidden={view !== 'calendar'}><EventCalendar events={shown} onOpen={onOpen} /></div>
         <div id={`${id}-list`} className="atlas-agenda" hidden={view !== 'list'}>
           <div className="atlas-event-list" aria-live="polite">
             {eventRows}
@@ -240,7 +243,7 @@ export function EventMap({ events, onOpen, expanded = false, searchable = false,
           </div>
         </div>
       </div>
-      <footer className="atlas-foot"><span>{located} en el mapa · {filtered.length - located} online o sin ubicación en el mapa</span><span>En el mapa se muestra únicamente los eventos futuros</span></footer>
+      <footer className="atlas-foot" hidden={view === 'calendar'}><span>{located} en el mapa · {filtered.length - located} online o sin ubicación en el mapa</span><span>En el mapa se muestra únicamente los eventos futuros</span></footer>
     </section>
   )
 }

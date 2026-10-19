@@ -193,3 +193,5 @@
 .city-select-options [role=option].is-focused { background: var(--soft); }
 .city-select-options [aria-selected=true] { font-weight: 500; }
 .city-select-empty { padding: 16px 4px; font-size: 14px; color: var(--muted-text); }
+
+.atlas-foot[hidden] { display: none; }
