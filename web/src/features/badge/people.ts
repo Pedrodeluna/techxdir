@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Person } from '../../data/sample'
 
-type PublicProfile = Pick<Person, 'id' | 'name' | 'role' | 'bio'> & { handle: string | null }
+type PublicProfile = Pick<Person, 'id' | 'name' | 'role' | 'bio'> & { handle: string | null; photo_url: string | null }
 type Attendance = { profile_id: string; event_id: string }
 export type ShadowRow = {
   event_id: string; person_id: string; handle: string; name: string; avatar_url: string | null; is_me: boolean
@@ -17,7 +17,7 @@ export function peopleFromRows(profiles: PublicProfile[], attendances: Attendanc
     events.set(row.profile_id, ids)
   }
   return profiles.filter(p => p.id !== userId).map(p => ({
-    ...p, handle: p.handle ?? '', events: events.get(p.id) ?? [],
+    ...p, avatar: p.photo_url, handle: p.handle ?? '', events: events.get(p.id) ?? [],
   }))
 }
 
@@ -43,7 +43,7 @@ export async function loadPeople(client: SupabaseClient, userId: string, signal:
   async function profiles() {
     const rows: PublicProfile[] = []
     for (let offset = 0; ; offset += pageSize) {
-      const { data, error } = await client.from('profiles').select('id,name,handle,role,bio')
+      const { data, error } = await client.from('profiles').select('id,name,handle,role,bio,photo_url')
         .neq('id', userId).order('id').range(offset, offset + pageSize - 1).abortSignal(signal)
       if (error) throw error
       rows.push(...data)

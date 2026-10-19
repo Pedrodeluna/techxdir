@@ -101,7 +101,7 @@ export function PeoplePanel({ state, bodyRef, tab, setTab }: Props) {
           : shown.length ? shown.map((p, i) => (
           <li className="person" style={at(i)} key={p.id}>
             <button className="person-row" type="button" data-person={p.id} aria-label={`Ver perfil de ${p.name}`} onClick={() => showPerson(p.id)}>
-              <Avatar name={p.name} />
+              <Avatar name={p.name} photo={p.avatar} />
               <span className="p-info">
                 <strong>{p.name}</strong>
                 <span>{p.handle && <span className="p-handle">@{p.handle}</span>}{p.handle && p.role ? ' · ' : ''}{p.role}</span>

@@ -903,15 +903,17 @@
 .share-btn {
   display: inline-flex;
   align-items: center;
-  gap: .45em;
-  margin: -.35em 0 -.35em -.55em;
-  padding: .35em .75em .35em .55em;
+  justify-content: center;
+  gap: .5em;
+  min-height: 44px;
+  padding: .65em .9em;
+  border: 1px solid var(--line);
   border-radius: 99px;
-  font: 500 .64em/1 var(--mono);
-  letter-spacing: .15em;
-  text-transform: uppercase;
-  color: var(--muted);
-  transition: background-color .2s, color .2s;
+  background: var(--soft);
+  font: 500 .64em/1.3 var(--mono);
+  letter-spacing: .035em;
+  color: var(--ink);
+  transition: background-color .2s, border-color .2s;
 }
 .share-btn svg {
   width: 1.5em;
@@ -923,9 +925,10 @@
   stroke-linejoin: round;
 }
 .share-btn:hover,
-.share-btn[aria-expanded="true"] { background: var(--soft); color: var(--ink); }
+.share-btn[aria-expanded="true"] { background: var(--card); border-color: var(--ink); }
 .share-btn:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 2px; }
 .foot { align-items: center; }
+.front > .foot { gap: 12px; flex-wrap: wrap; }
 
 /* el menú flota junto al botón; app.js lo coloca */
 .share-menu {
