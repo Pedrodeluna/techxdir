@@ -4,6 +4,7 @@
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2'
 import { cityFromText, normalizeCity } from './cities.ts'
 import { type IcalEvent, parseIcal } from './ical.ts'
+import { readItnigCalendar } from './itnig.ts'
 import { calendarEvents, DISCOVER_PLACES, discoverEvents, type LumaEntry, LumaError, lumaConfig, resolve } from './luma.ts'
 
 export const BUDGET_MS = 110_000
@@ -25,7 +26,7 @@ const FETCH_HEADERS = { 'User-Agent': 'techxdir-sync/1.0 (+https://github.com/Pe
 export type Source = {
   id: string
   org_id: string
-  kind: 'luma_calendar' | 'meetup_ical'
+  kind: 'luma_calendar' | 'meetup_ical' | 'itnig_ical'
   url: string
   external_id: string
   country_filter: string | null
@@ -33,7 +34,7 @@ export type Source = {
 
 /** The payload of public.ingest_event(). */
 export type EventPayload = {
-  external_kind: 'luma' | 'meetup'
+  external_kind: 'luma' | 'meetup' | 'itnig'
   external_id: string
   name: string
   starts_at: string
@@ -109,17 +110,17 @@ export function fromLuma(entry: LumaEntry): EventPayload {
   }
 }
 
-export function fromIcal(event: IcalEvent): EventPayload {
+export function fromIcal(event: IcalEvent, provider: 'meetup' | 'itnig' = 'meetup'): EventPayload {
   const city = cityFromText(event.location)
   return {
-    external_kind: 'meetup',
+    external_kind: provider,
     external_id: event.uid,
     name: event.summary,
     starts_at: event.start.toISOString(),
     ends_at: event.end?.toISOString() ?? null,
     url: event.url,
     city: event.location?.trim() ? city : undefined,
-    // Meetup feeds do not carry a country. A known Spanish city is enough;
+    // These iCalendar feeds do not carry a country. A known Spanish city is enough;
     // an online or unknown place stays as a draft (city null).
     country: city ? 'ES' : null,
     guest_count: null,
@@ -153,9 +154,12 @@ async function readSource(src: Source, deadline: number): Promise<{ events: Even
       complete: listing.complete,
     }
   }
+  if (src.kind === 'itnig_ical') {
+    return { events: (await readItnigCalendar()).map(event => fromIcal(event, 'itnig')), complete: true }
+  }
   const res = await fetch(meetupIcalUrl(src.external_id), { headers: FETCH_HEADERS, signal: AbortSignal.timeout(15_000) })
   if (!res.ok) throw new Error(`Meetup ${res.status} on ${src.external_id}`)
-  return { events: parseIcal(await res.text()).map(fromIcal), complete: true }
+  return { events: parseIcal(await res.text()).map(event => fromIcal(event)), complete: true }
 }
 
 /**

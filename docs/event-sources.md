@@ -1,5 +1,35 @@
 # Agenda local · septiembre y octubre de 2026
 
+## Seguimiento automático de Itnig
+
+En **Fuentes → Añadir por URL**, selecciona la organización Itnig y pega
+`https://itnig.net/events/`. El importador lee su calendario oficial
+`https://itnig.net/api/events/calendar/?locale=es`, anunciado en la agenda pública.
+No admite direcciones iCalendar arbitrarias ni importa una ficha individual de Itnig.
+
+- La fuente `itnig_ical` usa la sincronización diaria existente, además de
+  **Sincronizar ahora**, pausa y registro de errores. No añade otro cron.
+- Sigue los eventos no finalizados de la agenda, sin filtro temático nuevo ni
+  ciudad fija. Conserva las reglas actuales de publicación y revisión.
+- Identifica cada evento por su UID completo. Si ya existe manualmente en la misma
+  organización con la misma URL de Itnig, conserva su ID aunque cambie la fecha.
+  Las coincidencias ambiguas fallan sin modificar esos registros; no se adopta
+  otro evento solo por compartir día.
+- Una respuesta HTTP fallida o un calendario incompleto/inválido no cancela eventos.
+  Solo una lectura completa permite marcar como cancelados los futuros que faltan.
+- No importa asistentes de Itnig; ese mecanismo sigue siendo exclusivo de Luma.
+
+Requiere aplicar `20261022160000_itnig_source.sql`, desplegar `add-url` y
+`sync-sources` con sus módulos compartidos, y publicar el frontend. Añadir la
+fuente inicia una primera importación; es una operación explícita sobre el catálogo.
+Las ejecuciones automáticas requieren también los secretos de cron ya documentados;
+el cambio de código no los configura ni activa producción por sí solo.
+
+Pruebas: `cd supabase/functions && deno task test` y
+`python3 scripts/test-itnig-ingest.py` (PostgreSQL temporal, sin usar la conexión configurada).
+
+## Catálogo verificado
+
 Comprobación: 2 de octubre de 2026. Fechas de calendario del lugar del evento; no se deducen horarios, precios, asistentes ni permisos de organización.
 
 | Evento | Fechas de 2026 | Ciudad | Fuente del organizador o sede |

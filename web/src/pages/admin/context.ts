@@ -7,7 +7,7 @@ export type AdminEvent = {
   id: string; org_id: string; name: string; short: string; city: string
   starts_on: string; ends_on: string | null; url: string | null; kind: string; color: string
   status?: 'draft' | 'published' | 'canceled' | 'merged'
-  external_kind?: 'luma' | 'meetup' | null
+  external_kind?: 'luma' | 'meetup' | 'itnig' | null
   duplicate_of?: string | null
   guest_count?: number | null
 }

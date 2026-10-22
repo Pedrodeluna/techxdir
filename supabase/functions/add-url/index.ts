@@ -1,4 +1,4 @@
-// add-url: "Añadir por URL". A Luma calendar or a Meetup group becomes a
+// add-url: "Añadir por URL". A Luma calendar, Meetup group or Itnig agenda becomes a
 // source and is read at once. A single Luma event is imported as a draft.
 //
 //   POST /functions/v1/add-url
@@ -11,6 +11,7 @@ import { corsHeaders, json } from '../_shared/cors.ts'
 import { deadlineFrom, emptyStats, fromLuma, eventIdBase, meetupGroup, meetupIcalUrl, shortName, slugify,
   type Source, syncSource, useSharedLumaPace } from '../_shared/ingest.ts'
 import { lumaSlug, resolve } from '../_shared/luma.ts'
+import { itnigSourceUrl, readItnigCalendar } from '../_shared/itnig.ts'
 
 type Body = { url?: unknown; org_id?: unknown; new_org?: unknown; country_filter?: unknown }
 
@@ -31,7 +32,7 @@ Deno.serve(async req => {
     return json({ error: 'Body must be valid JSON' }, 400)
   }
   const url = typeof body.url === 'string' ? body.url.trim() : ''
-  if (!url || url.length > 300) return json({ error: 'Pega un enlace de Luma o Meetup' }, 400)
+  if (!url || url.length > 300) return json({ error: 'Pega un enlace de Luma, Meetup o la agenda de Itnig' }, 400)
   const countryFilter = body.country_filter === 'ES' ? 'ES' : null
   const newOrg = typeof body.new_org === 'string' ? body.new_org.trim().slice(0, 80) : ''
   let orgId = typeof body.org_id === 'string' ? body.org_id : ''
@@ -43,7 +44,11 @@ Deno.serve(async req => {
   let source: Omit<Source, 'id' | 'org_id'> & { name: string }
   const group = meetupGroup(url)
   const slug = group ? null : lumaSlug(url)
-  if (group) {
+  const itnig = itnigSourceUrl(url)
+  if (itnig) {
+    await readItnigCalendar()
+    source = { kind: 'itnig_ical', url: itnig, external_id: 'itnig', name: 'Itnig', country_filter: countryFilter }
+  } else if (group) {
     const res = await fetch(meetupIcalUrl(group), { signal: AbortSignal.timeout(15_000) })
     await res.body?.cancel()
     if (!res.ok) return json({ error: 'No encontramos ese grupo de Meetup' }, 404)
@@ -70,7 +75,7 @@ Deno.serve(async req => {
     source = { kind: 'luma_calendar', url: `https://luma.com/${cal.slug ?? slug}`, external_id: cal.api_id,
       name: cal.name, country_filter: countryFilter }
   } else {
-    return json({ error: 'Solo admitimos enlaces de luma.com y meetup.com' }, 400)
+    return json({ error: 'Solo admitimos enlaces de luma.com, meetup.com y la agenda itnig.net/events/' }, 400)
   }
 
   const { data: existing } = await db.from('event_sources').select('id, org_id')
