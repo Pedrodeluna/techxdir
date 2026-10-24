@@ -103,7 +103,7 @@ export function EventsSection() {
                   <time className="adm-date" dateTime={event.starts_on}>{formatDate(event.starts_on)}</time>
                   <span className="adm-row-main"><strong>{event.name}</strong><small>{orgName.get(event.org_id) ?? event.org_id} · {event.city}</small></span>
                   <span className="adm-tags">
-                    {event.external_kind && <span className="adm-tag adm-tag-ban">{event.external_kind === 'luma' ? 'Luma' : 'Meetup'}</span>}
+                    {event.external_kind && <span className="adm-tag adm-tag-ban">{{ luma: 'Luma', meetup: 'Meetup', itnig: 'Itnig' }[event.external_kind]}</span>}
                     {event.status && event.status !== 'published' && <span className="adm-tag">{statusLabels[event.status]}{event.duplicate_of ? ' · duplicado' : ''}</span>}
                   </span>
                   <span className="adm-row-meta">{people} {people === 1 ? 'asistente' : 'asistentes'}</span>

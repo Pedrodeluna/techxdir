@@ -50,7 +50,7 @@ export function SourceManager({ orgs, orgId, admin, busy, run }: {
         <label className="src-url">
           <span>Añadir por URL</span>
           <input type="url" required value={url} onChange={event => setUrl(event.target.value)}
-            placeholder="https://luma.com/tu-calendario · https://www.meetup.com/tu-grupo" />
+            placeholder="https://luma.com/tu-calendario · https://www.meetup.com/tu-grupo · https://itnig.net/events/" />
         </label>
         {!orgId && (
           <label className="src-org">
@@ -65,17 +65,17 @@ export function SourceManager({ orgs, orgId, admin, busy, run }: {
           <span>Solo eventos en España</span>
         </label>
         <button className="src-pill" disabled={busy || !url.trim()}>Añadir</button>
-        <small className="src-help">Un calendario de Luma o un grupo de Meetup se sincroniza cada día. Un evento suelto de Luma entra como borrador{admin ? '' : ' para que lo revises'}.</small>
+        <small className="src-help">Los calendarios de Luma, grupos de Meetup y la agenda de Itnig se sincronizan cada día. Un evento suelto de Luma entra como borrador{admin ? '' : ' para que lo revises'}.</small>
       </form>
 
       {!sources ? <p className="src-empty" aria-busy="true">Cargando fuentes…</p> : !sources.length ? (
-        <p className="src-empty">Aún no hay fuentes. Pega el enlace del calendario de Luma o del grupo de Meetup.</p>
+        <p className="src-empty">Aún no hay fuentes. Pega un calendario de Luma, un grupo de Meetup o https://itnig.net/events/.</p>
       ) : (
         <ul className="src-list">
           {sources.map(src => (
             <li key={src.id} className={src.enabled ? undefined : 'is-off'}>
               <div className="src-main">
-                <span className="src-kind">{src.kind === 'luma_calendar' ? 'Luma' : 'Meetup'}</span>
+                <span className="src-kind">{{ luma_calendar: 'Luma', meetup_ical: 'Meetup', itnig_ical: 'Itnig' }[src.kind]}</span>
                 <a href={src.url} target="_blank" rel="noopener noreferrer"><strong>{src.name || src.url}</strong></a>
                 <small>
                   {!orgId && <>{orgName.get(src.org_id) ?? src.org_id} · </>}

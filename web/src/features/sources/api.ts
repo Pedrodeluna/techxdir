@@ -2,7 +2,7 @@ import { FunctionsHttpError } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
 
 export type SourceRow = {
-  id: string; org_id: string; kind: 'luma_calendar' | 'meetup_ical'; url: string; name: string
+  id: string; org_id: string; kind: 'luma_calendar' | 'meetup_ical' | 'itnig_ical'; url: string; name: string
   country_filter: string | null; enabled: boolean; last_synced_at: string | null; last_error: string | null
 }
 export const SOURCE_COLUMNS = 'id, org_id, kind, url, name, country_filter, enabled, last_synced_at, last_error'
