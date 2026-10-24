@@ -141,7 +141,7 @@ export function Landing() {
 
         {!session && programme}
         <div className="lp-atlas" id="encuentros">
-          {loading ? <p role="status">Cargando encuentros…</p> : error ? <p role="alert">No se ha podido cargar la agenda. <button className="link" onClick={retry}>Reintentar</button></p> : <EventMap events={catalog.events} onOpen={session ? openEvent : undefined} persistenceKey="techxdir:explore" searchable />}
+          {loading ? <p role="status">Cargando encuentros…</p> : error ? <p role="alert">No se ha podido cargar la agenda. <button className="link" onClick={retry}>Reintentar</button></p> : <EventMap events={catalog.events} orgs={catalog.orgs} onOpen={session ? openEvent : undefined} persistenceKey="techxdir:explore" searchable />}
         </div>
       </main>
 

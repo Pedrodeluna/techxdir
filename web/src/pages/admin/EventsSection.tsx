@@ -49,9 +49,9 @@ export function EventsSection() {
       (!orgFilter || event.org_id === orgFilter)
       && (when === 'review' ? event.status === 'draft' : event.status !== 'merged')
       && (when === 'all' || when === 'review' || (when === 'upcoming' ? (event.ends_on ?? event.starts_on) >= today : (event.ends_on ?? event.starts_on) < today))
-      && (!q || [event.name, event.short, event.city, event.id].some(value => value.toLowerCase().includes(q))))
+      && (!q || [event.name, event.short, event.city, event.id, event.org_id, orgName.get(event.org_id) ?? ''].some(value => value.toLowerCase().includes(q))))
     return when === 'past' ? rows.reverse() : rows
-  }, [events, orgFilter, when, query])
+  }, [events, orgFilter, when, query, orgName])
 
   const change = (action: () => Promise<void>, success: string) => run(async () => { await action(); await reload() }, success)
 
@@ -73,7 +73,7 @@ export function EventsSection() {
       <div className="adm-filters">
         <label className="adm-search">
           <span className="sr-only">Buscar eventos</span>
-          <input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Buscar por nombre o ciudad" />
+          <input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Buscar por nombre, ciudad u organizador" />
         </label>
         <label className="adm-select">
           <span className="sr-only">Organización</span>
