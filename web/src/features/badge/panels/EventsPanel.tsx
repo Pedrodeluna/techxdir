@@ -248,7 +248,7 @@ export function EventsPanel({ state, toggle, bodyRef, tab, setTab, escRef, initi
         role="tabpanel"
         style={mode !== 'initial' ? ({ '--base': '0ms' } as CSSProperties) : undefined}
       >
-        {state.catalogLoading ? <p className="empty" role="status">Cargando eventos…</p> : state.catalogError ? <p className="empty" role="alert">No se han podido cargar los eventos. <button className="link" onClick={state.retryCatalog}>Reintentar</button></p> : tab === 'discover' ? <EventMap events={EVENTS.filter(e => !listSet.has(e.id))} onOpen={id => pushView({ type: 'event', id })} /> : items.length ? items : (
+        {state.catalogLoading ? <p className="empty" role="status">Cargando eventos…</p> : state.catalogError ? <p className="empty" role="alert">No se han podido cargar los eventos. <button className="link" onClick={state.retryCatalog}>Reintentar</button></p> : tab === 'discover' ? <EventMap orgs={[...ORG.values()]} events={EVENTS.filter(e => !listSet.has(e.id))} onOpen={id => pushView({ type: 'event', id })} /> : items.length ? items : (
           <div className="empty">
             <p>Aún no has marcado ningún evento.</p>
             <button type="button" className="link" onClick={() => changeTab('discover')}>Añade tu primer evento</button>

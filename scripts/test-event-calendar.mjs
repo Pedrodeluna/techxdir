@@ -33,7 +33,9 @@ const require = createRequire(import.meta.url)
 const React = require('react')
 const { renderToStaticMarkup } = require('react-dom/server')
 const modules = new Map()
+const overrides = new Map()
 function load(path) {
+  if (overrides.has(path)) return overrides.get(path)
   if (path.endsWith('.css')) return {}
   if (modules.has(path)) return modules.get(path)
   const code = ts.transpileModule(readFileSync(path, 'utf8'), { compilerOptions: {
@@ -42,7 +44,7 @@ function load(path) {
   const module = { exports: {} }
   modules.set(path, module.exports)
   const localRequire = name => {
-    if (!name.startsWith('.')) return require(name)
+    if (!name.startsWith('.')) return overrides.get(name) ?? require(name)
     const target = resolve(dirname(path), name)
     if (name.endsWith('.css')) return {}
     try { return load(`${target}.ts`) } catch (error) {
@@ -99,3 +101,66 @@ assert.match(calendar, /data-view="month"/)
 delete globalThis.window
 delete globalThis.sessionStorage
 console.log('Calendar view switch checks passed: accessible week/month selector and responsive defaults.')
+
+// Organizer lookup must use catalog metadata, even when the event title has no brand.
+const orgFixture = [
+  { id: 'source-42', name: 'Itnig', logo: 'I' },
+  { id: 'community-7', name: 'Comunidad Técnica', logo: 'C' },
+]
+const searchFixture = [
+  { ...fixture[0], id: 'ai', org: 'source-42', name: 'Construyendo IA en Europa' },
+  { ...fixture[1], id: 'devin', org: 'source-42', name: 'Gremio.day x Devin.ai' },
+  { ...fixture[0], id: 'other-org', org: 'community-7', name: 'Java Workshop' },
+  { ...fixture[2], id: 'old-org', org: 'source-42', name: 'Historic Workshop' },
+]
+const renderSearch = (query, extra = {}) => {
+  globalThis.sessionStorage = { getItem: () => JSON.stringify({ view: 'list', period: 'next', query, ...extra }) }
+  return renderToStaticMarkup(React.createElement(EventMap, { events: searchFixture, orgs: orgFixture, persistenceKey: 'test', searchable: true }))
+}
+const branded = renderSearch('  ITNIG ')
+assert.match(branded, /Construyendo IA en Europa/)
+assert.match(branded, /Gremio.day x Devin.ai/)
+assert.doesNotMatch(branded, /Java Workshop|Historic Workshop/)
+assert.match(renderSearch('comunidad tecnica'), /Java Workshop/)
+assert.match(renderSearch('source-42'), /Construyendo IA en Europa/)
+assert.doesNotMatch(renderSearch('itnig', { city: 'Madrid' }), /Gremio.day x Devin.ai/)
+assert.match(renderSearch('itnig', { period: 'past' }), /Historic Workshop/)
+assert.doesNotMatch(renderSearch('itnig', { period: 'past' }), /Construyendo IA en Europa/)
+for (const query of ['construyendo', 'madrid', 'meetup', '']) {
+  assert.match(renderSearch(query), /Construyendo IA en Europa/, `Existing public search: ${query}`)
+}
+assert.doesNotMatch(renderSearch('unknown organizer'), /Construyendo IA en Europa|Java Workshop/)
+delete globalThis.sessionStorage
+console.log('Organizer explorer checks passed: catalog names, IDs, accents, city/date filters and existing search.')
+
+// Render the admin public component with loaded state; effects and writes remain disabled.
+const adminEvents = searchFixture.map(e => ({ ...e, org_id: e.org, short: 'Brief title', starts_on: e.date, ends_on: e.end, status: 'published' }))
+let adminState = []
+overrides.set('react', { ...React,
+  useState: () => [adminState.shift(), () => {}],
+  useEffect: () => {},
+  useMemo: fn => fn(),
+  useCallback: fn => fn,
+})
+const adminPath = resolve('web/src/pages/admin')
+overrides.set(resolve(adminPath, '../../lib/supabase.ts'), { supabase: null })
+overrides.set(resolve(adminPath, 'context.ts'), { useAdmin: () => ({ busy: false, run: () => {} }), formatDate: day => day })
+overrides.set(resolve(adminPath, 'shared.ts'), {
+  SectionHead: () => null, Empty: ({ children }) => React.createElement('p', null, children), SkeletonRows: () => null,
+})
+const { EventsSection } = load(resolve(adminPath, 'EventsSection.tsx'))
+const renderAdmin = (query, orgFilter = '', when = 'upcoming') => {
+  adminState = [adminEvents, orgFixture, {}, '', query, orgFilter, when, null, false]
+  return renderToStaticMarkup(React.createElement(EventsSection))
+}
+const adminBranded = renderAdmin('ITNIG')
+assert.match(adminBranded, /Construyendo IA en Europa/)
+assert.match(adminBranded, /Gremio.day x Devin.ai/)
+assert.doesNotMatch(adminBranded, /Java Workshop|Historic Workshop/)
+assert.match(renderAdmin('community-7'), /Java Workshop/)
+assert.doesNotMatch(renderAdmin('itnig', 'community-7'), /Construyendo IA en Europa/)
+assert.match(renderAdmin('itnig', '', 'past'), /Historic Workshop/)
+for (const query of ['construyendo', 'brief title', 'madrid', 'ai', '']) {
+  assert.match(renderAdmin(query), /Construyendo IA en Europa/, `Existing admin search: ${query}`)
+}
+console.log('Admin organizer checks passed: names, IDs, organization/date filters and existing search.')

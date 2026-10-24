@@ -29,7 +29,7 @@ export function Events() {
               <p role="alert">No se ha podido cargar la agenda. <button type="button" className="link" onClick={retry}>Reintentar</button></p>
             )}
           </section>
-        ) : <EventMap events={catalog.events} expanded persistenceKey="techxdir:explore" onOpen={session ? id => navigate(`/?event=${encodeURIComponent(id)}`) : undefined} />}
+        ) : <EventMap events={catalog.events} orgs={catalog.orgs} expanded persistenceKey="techxdir:explore" onOpen={session ? id => navigate(`/?event=${encodeURIComponent(id)}`) : undefined} />}
       </main>
     </div>
   )

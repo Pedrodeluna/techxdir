@@ -1,5 +1,5 @@
-import { useEffect, useLayoutEffect, useId, useRef, useState } from 'react'
-import type { TechEvent } from '../../data/sample'
+import { useEffect, useLayoutEffect, useMemo, useId, useRef, useState } from 'react'
+import type { Org, TechEvent } from '../../data/sample'
 import { fmtRange, isPast } from '../badge/model'
 import { EventCalendar } from './EventCalendar'
 import { CitySelect } from './CitySelect'
@@ -26,8 +26,8 @@ function readFilters(key?: string): MapFilters {
   } catch { return fallback }
 }
 
-export function EventMap({ events, onOpen, expanded = false, searchable = false, persistenceKey }: {
-  events: TechEvent[]; onOpen?: (id: string) => void; expanded?: boolean; searchable?: boolean; persistenceKey?: string
+export function EventMap({ events, orgs = [], onOpen, expanded = false, searchable = false, persistenceKey }: {
+  events: TechEvent[]; orgs?: Pick<Org, 'id' | 'name'>[]; onOpen?: (id: string) => void; expanded?: boolean; searchable?: boolean; persistenceKey?: string
 }) {
   const id = useId()
   const [initial] = useState(() => readFilters(persistenceKey))
@@ -42,6 +42,7 @@ export function EventMap({ events, onOpen, expanded = false, searchable = false,
   const cityTriggerRef = useRef<HTMLElement | SVGElement | null>(null)
   const normalize = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es').trim()
   const search = normalize(query)
+  const orgNames = useMemo(() => new Map(orgs.map(org => [org.id, org.name])), [orgs])
   useEffect(() => {
     if (persistenceKey) {
       try { sessionStorage.setItem(persistenceKey, JSON.stringify({ city, period, view, query })) } catch { /* storage unavailable */ }
@@ -49,7 +50,7 @@ export function EventMap({ events, onOpen, expanded = false, searchable = false,
   }, [persistenceKey, city, period, view, query])
   const filtered = events.filter(e =>
     (view === 'map' ? !isPast(e) : period === 'all' || (period === 'next' ? !isPast(e) : isPast(e))) &&
-    (!search || normalize(`${e.name} ${e.city} ${e.kind}`).includes(search)),
+    (!search || normalize(`${e.name} ${e.city} ${e.kind} ${e.org ?? ''} ${orgNames.get(e.org) ?? ''}`).includes(search)),
   )
   const cities = [...new Set(filtered.map(e => e.city))].sort((a, b) => a.localeCompare(b, 'es'))
   const selected = city && cities.includes(city) ? city : null
@@ -137,7 +138,7 @@ export function EventMap({ events, onOpen, expanded = false, searchable = false,
       {(expanded || searchable) && <div className="atlas-search">
         <label htmlFor={`${id}-search`} className="label">Buscar encuentros</label>
         <div>
-          <input id={`${id}-search`} type="search" placeholder="Evento, ciudad o tipo de encuentro" value={query} onChange={e => setQuery(e.target.value)} />
+          <input id={`${id}-search`} type="search" placeholder="Evento, organizador, ciudad o tipo de encuentro" value={query} onChange={e => setQuery(e.target.value)} />
           {query && <button type="button" className="link" onClick={() => setQuery('')}>Limpiar</button>}
         </div>
       </div>}
